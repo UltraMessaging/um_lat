@@ -44,8 +44,8 @@ For maximum sustainable throughput testing, see https://github.com/UltraMessagin
 
 These tools test latency under load.
 The "ping" tool sends messages at a desired constant rate,
-and the "pong" tool receives them and re-publishes them back.
-As the "ping" tool receives the re-published messages,
+and the "pong" tool receives them and re-publishes (reflects) them back.
+As the "ping" tool receives the reflected messages,
 it calculates the round-trip latency.
 
 The latencies are accumulated in a histogram so that percentiles can be
@@ -202,3 +202,15 @@ microseconds.
 
 Here's the Excel chart:
 ![latency chart 2](lat_test2.png)
+
+
+## TOOL NOTES
+
+### UM_LAT_PING.C
+
+This tool has two "hot" threads: main and context.
+The main thread sends messages,
+and the context thread receives the reflected messages.
+
+### UM_LAT_PONG.C
+
