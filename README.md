@@ -42,6 +42,15 @@ the results of which are outlined in this document.
 
 For maximum sustainable throughput testing, see https://github.com/UltraMessaging/um_perf
 
+These tools test latency under load.
+The "ping" tool sends messages at a desired constant rate,
+and the "pong" tool receives them and re-publishes them back.
+As the "ping" tool receives the re-published messages,
+it calculates the round-trip latency.
+
+The latencies are accumulated in a histogram so that percentiles can be
+calculated.
+
 The tests described below were run on Informatica hardware and gave the
 following results:
 
