@@ -106,7 +106,7 @@ fi
 PATH="$LBM/bin:$PATH"
 ````
 
-### Requirements
+### REQUIREMENTS
 
 1. 5 Linux-based hosts (X86, 64-bit).
 16 gigabytes or more memory.
@@ -139,7 +139,7 @@ In the demonstrations that follow, the "taskset" command is used to
 set affinity for the "main" thread, and the "-a" command-line option
 is used to set affinity for the "context" thread.
 
-### Update Configuration File
+### UPDATE CONFIGURATION FILE
 
 Contact your network administration group and request three multicast groups
 that you can use exclusively.
@@ -153,7 +153,7 @@ of the network address.
 For example: "10.29.4.0/24".
 All hosts can typically use this on the same LAN.
 
-#### UM Configuration File
+#### UM CONFIGURATION FILE
 
 The file "um.xml" should be modified.
 Here is an excerpt:
@@ -197,7 +197,7 @@ even though we typically recommend the use of
 We recommend conducting a configuration workshop with Informatica.
 
 
-## TEST
+## TEST STREAMING
 
 ### KERNEL DRIVER
 
@@ -305,6 +305,11 @@ Here's the Excel chart:
 ![latency chart 2](lat_test2.png)
 
 
+## TEST PERSISTENCE
+
+TBD.
+
+
 ## MEASUREMENT OUTLIERS
 
 The SmartSource transport code is written to provide a very constant
@@ -318,7 +323,7 @@ Two environmental factors cause these outliers:
 * Interruptions.
 * Memory contention and cache invalidation.
 
-### Interruptions
+### INTERRUPTIONS
 
 There are many sources of execution interruptions on a CPU core running
 a typical OS (Linux or Windows).
