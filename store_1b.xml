@@ -1,0 +1,45 @@
+<ume-store version="1.3">
+  <daemon>
+    <web-monitor>*:12012</web-monitor>
+    <log type="console"></log>
+    <xml-config>um.xml</xml-config>
+  </daemon>
+
+  <stores>
+    <store name="store_b_topic1" interface="10.29.4.0/24" port="12002">
+    <ume-attributes>
+      <option type="store" name="disk-cache-directory" value="/home/tmp/sford/cache1b"/>
+      <option type="store" name="disk-state-directory" value="/home/tmp/sford/state1b"/>
+      <option type="store" name="context-name" value="store_b_topic1"/>
+    </ume-attributes>
+      <topics>
+        <topic pattern="topic1" type="direct">
+          <ume-attributes>
+            <option type="store" name="repository-allow-receiver-paced-persistence" value="1"/>
+            <option type="store" name="source-flight-size-bytes-maximum" value="1999999999"/>
+            <option type="store" name="repository-allow-ack-on-reception" value="1"/>
+            <option type="store" name="repository-disk-write-delay" value="1500"/>
+            <option type="store" name="repository-type" value="disk"/>
+            <option type="store" name="repository-size-threshold" value="141000000"/>
+            <option type="store" name="repository-size-limit" value="165000000"/>
+            <option type="store" name="repository-disk-file-size-limit" value="8589934592"/>
+            <option type="store" name="stability-ack-minimum-number" value="64"/>
+          </ume-attributes>
+        </topic>
+        <topic pattern="topic1abc" type="direct">
+          <ume-attributes>
+            <option type="store" name="repository-allow-receiver-paced-persistence" value="1"/>
+            <option type="store" name="source-flight-size-bytes-maximum" value="1999999999"/>
+            <option type="store" name="repository-allow-ack-on-reception" value="1"/>
+            <option type="store" name="repository-disk-write-delay" value="1500"/>
+            <option type="store" name="repository-type" value="disk"/>
+            <option type="store" name="repository-size-threshold" value="141000000"/>
+            <option type="store" name="repository-size-limit" value="165000000"/>
+            <option type="store" name="repository-disk-file-size-limit" value="8589934592"/>
+            <option type="store" name="stability-ack-minimum-number" value="64"/>
+          </ume-attributes>
+        </topic>
+      </topics>
+    </store>
+  </stores>
+</ume-store>

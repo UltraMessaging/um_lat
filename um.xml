@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<um-configuration version="1.0">
+  <templates>
+    <template name="um_perf">
+      <options type="context">
+        <option name="resolver_multicast_interface" default-value="10.29.4.0/24"/>
+        <option name="request_tcp_interface" default-value="10.29.4.0/24"/>
+        <option name="resolver_multicast_address" default-value="239.101.3.1"/>
+        <option name="mim_incoming_address" default-value="0.0.0.0"/>
+        <option name="transport_lbtrm_data_rate_limit" default-value="100000000000"/>
+        <option name="transport_lbtrm_receiver_socket_buffer" default-value="128000000"/>
+        <option name="dynamic_fragmentation_reduction" default-value="1"/>
+        <option name="transport_lbtrm_datagram_max_size" default-value="1472"/>
+        <option name="fd_management_type" default-value="epoll"/>
+        <option name="multiple_receive_maximum_datagrams" default-value="100"/>
+        <option name="transport_lbtrm_recycle_receive_buffers" default-value="1"/>
+        <option name="file_descriptor_management_behavior" default-value="busy_wait"/>
+      </options>
+      <options type="source">
+        <option name="transport" default-value="lbtrm"/>
+        <option name="transport_lbtrm_sm_maximum_interval" default-value="2000"/>
+        <option name="implicit_batching_minimum_length" default-value="1"/>
+        <option name="smart_src_user_buffer_count" default-value="2"/>
+        <option name="smart_src_max_message_length" default-value="1424"/>
+        <option name="resolver_advertisement_minimum_initial_interval" default-value="0"/>
+        <option name="resolver_advertisement_maximum_initial_interval" default-value="0"/>
+        <option name="resolver_advertisement_sustain_interval" default-value="0"/>
+        <option name="smart_src_retention_buffer_count" default-value="101000"/>
+        <option name="retransmit_retention_size_limit" default-value="71000000"/>
+        <option name="ume_message_stability_timeout" default-value="0"/>
+        <option name="ume_flight_size" default-value="100000"/>
+        <option name="ume_flight_size_bytes" default-value="140000000"/>
+      </options>
+      <options type="receiver">
+        <option name="delivery_control_maximum_burst_loss" default-value="100000000"/>
+        <option name="transport_lbtrm_nak_generation_interval" default-value="1"/>
+        <option name="transport_lbtrm_send_naks" default-value="0"/>
+        <option name="use_otr" default-value="0"/>
+        <option name="resolver_query_minimum_initial_interval" default-value="0"/>
+        <option name="resolver_query_maximum_initial_interval" default-value="0"/>
+        <option name="resolution_number_of_sources_query_threshold" default-value="1"/>
+        <!-- To make testing quicker, time out LBTRM after 5.2 sec (lbmpong sleeps
+             5 sec before first send; don't time out too soon). -->
+        <option name="transport_lbtrm_activity_timeout" default-value="5200"/>
+      </options>
+    </template>
+  </templates>
+
+  <applications>
+    <application name="um_perf" template="um_perf">
+      <contexts>
+        <context>
+          <sources>
+            <topic topicname="topic1">
+              <options type="source">
+                <option name="transport_lbtrm_multicast_address" default-value="239.101.3.2"/>
+              </options>
+            </topic>
+            <topic topicname="lbmpong/ping">
+              <options type="source">
+                <option name="transport_lbtrm_multicast_address" default-value="239.101.3.2"/>
+              </options>
+            </topic>
+            <topic topicname="topic2">
+              <options type="source">
+                <option name="transport_lbtrm_multicast_address" default-value="239.101.3.3"/>
+              </options>
+            </topic>
+            <topic topicname="lbmpong/pong">
+              <options type="source">
+                <option name="transport_lbtrm_multicast_address" default-value="239.101.3.3"/>
+              </options>
+            </topic>
+            <topic topicname="topic3">
+              <options type="source">
+                <option name="transport_lbtrm_multicast_address" default-value="239.101.3.4"/>
+              </options>
+            </topic>
+          </sources>
+        </context>
+      </contexts>
+    </application>
+
+    <application name="um_perf_rpp" template="um_perf">
+      <contexts>
+        <context>
+          <sources>
+            <topic topicname="topic1">
+              <options type="source">
+                <option name="transport_lbtrm_multicast_address" default-value="239.101.3.2"/>
+                <option name="ume_repository_ack_on_reception" default-value="1"/>
+                <option name="ume_receiver_paced_persistence" default-value="1"/>
+                <option name="ume_store_name" default-value="store_a_topic1"/>
+              </options>
+            </topic>
+            <topic topicname="topic2">
+              <options type="source">
+                <option name="transport_lbtrm_multicast_address" default-value="239.101.3.3"/>
+                <option name="ume_repository_ack_on_reception" default-value="1"/>
+                <option name="ume_receiver_paced_persistence" default-value="1"/>
+                <option name="ume_store_name" default-value="store_a_topic2"/>
+              </options>
+            </topic>
+            <topic topicname="topic3">
+              <options type="source">
+                <option name="transport_lbtrm_multicast_address" default-value="239.101.3.4"/>
+                <option name="ume_repository_ack_on_reception" default-value="1"/>
+                <option name="ume_receiver_paced_persistence" default-value="1"/>
+                <option name="ume_store_name" default-value="store_a_topic3"/>
+              </options>
+            </topic>
+            <topic topicname="topic1abc">
+              <options type="source">
+                <option name="transport_lbtrm_multicast_address" default-value="239.101.3.2"/>
+                <option name="ume_repository_ack_on_reception" default-value="1"/>
+                <option name="ume_receiver_paced_persistence" default-value="1"/>
+                <option name="ume_store_name" default-value="store_a_topic1"/>
+                <option name="ume_store_name" default-value="store_b_topic1"/>
+                <option name="ume_store_name" default-value="store_c_topic1"/>
+              </options>
+            </topic>
+          </sources>
+          <receivers>
+            <topic pattern=".*">
+              <options type="receiver">
+                <option name="ume_receiver_paced_persistence" default-value="1"/>
+              </options>
+            </topic>
+          </receivers>
+        </context>
+      </contexts>
+    </application>
+
+    <application name="um_perf_spp" template="um_perf">
+      <contexts>
+        <context>
+          <sources>
+            <topic topicname="topic1">
+              <options type="source">
+                <option name="transport_lbtrm_multicast_address" default-value="239.101.3.2"/>
+                <option name="ume_store_name" default-value="store_a_topic1"/>
+              </options>
+            </topic>
+            <topic topicname="topic2">
+              <options type="source">
+                <option name="transport_lbtrm_multicast_address" default-value="239.101.3.3"/>
+                <option name="ume_store_name" default-value="store_a_topic2"/>
+              </options>
+            </topic>
+            <topic topicname="topic3">
+              <options type="source">
+                <option name="transport_lbtrm_multicast_address" default-value="239.101.3.4"/>
+                <option name="ume_store_name" default-value="store_a_topic3"/>
+              </options>
+            </topic>
+            <topic topicname="topic1abc">
+              <options type="source">
+                <option name="transport_lbtrm_multicast_address" default-value="239.101.3.2"/>
+                <option name="ume_store_name" default-value="store_a_topic1"/>
+                <option name="ume_store_name" default-value="store_b_topic1"/>
+                <option name="ume_store_name" default-value="store_c_topic1"/>
+              </options>
+            </topic>
+          </sources>
+        </context>
+      </contexts>
+    </application>
+
+    <application name="umestored" template="um_perf">
+      <contexts>
+      </contexts>
+    </application>
+  </applications>
+</um-configuration>
