@@ -5,6 +5,15 @@ and streaming.
 
 # Table of contents
 
+- [um_lat - test programs to measure the latency of Ultra Messaging.](#um_lat---test-programs-to-measure-the-latency-of-ultra-messaging)
+- [Table of contents](#table-of-contents)
+  - [COPYRIGHT AND LICENSE](#copyright-and-license)
+  - [REPOSITORY](#repository)
+  - [INTRODUCTION](#introduction)
+  - [TEST](#test)
+  - [MEASUREMENT OUTLIERS](#measurement-outliers)
+  - [TOOL NOTES](#tool-notes)
+
 <sup>(table of contents from https://luciopaiva.com/markdown-toc/)</sup>
 
 ## COPYRIGHT AND LICENSE
@@ -83,7 +92,6 @@ PATH="$LBM/bin:$PATH"
 ### Requirements
 
 1. 5 Linux-based hosts (X86, 64-bit).
-hyperthreading turned off,
 16 gigabytes or more memory.
 At least one host must have a fast disk.
 These should be "bare metal" machines, NOT virtual machines.
@@ -106,11 +114,11 @@ CPUs that are "close" to the NIC.
 See [Choose CPUs](https://github.com/UltraMessaging/um_perf#choose-cpus)
 for advice on how to determine which CPUs are closest to the NIC.
 
-On our test systems, CPU numbers 4 and 12 are closest.
+On our test systems, CPU numbers 4 and 12 are the closest.
 
 The "um_lat_ping" and "um_lat_pong" tools generally have two threads
 during normal execution.
-In the demonstrations the follow, the "taskset" command is used to
+In the demonstrations that follow, the "taskset" command is used to
 set affinity for the "main" thread, and the "-a" command-line option
 is used to set affinity for the "context" thread.
 
@@ -177,7 +185,7 @@ We recommend conducting a configuration workshop with Informatica.
 ### KERNEL DRIVER
 
 This test uses Solarflare NIC but not Onload.
-Just the regular kernal network driver is used.
+Just the regular kernel network driver is used.
 
 #### System 1 (pong)
 
@@ -221,7 +229,7 @@ The "-H 300,1000" command-line option tells the tool to use 300 buckets with
 1000 nanoseconds for each bucket.
 Thus, the "ping.log" contains 300 lines, with each line indicating the number
 of samples with latencies within that bucket's range.
-For example, in the above test test run, the 25th histogram line
+For example, in the above test run, the 25th histogram line
 is:
 ````
 281488
@@ -360,7 +368,7 @@ and the context thread receives the reflected messages.
 
 Each message is loaded with a nanosecond-resolution timestamp.
 When the reflected message is received, a new timestamp is
-taken and the message's timestamp is subtracted.
+taken, and the message's timestamp is subtracted.
 This gives the round-trip duration.
 
 By default, the tool uses Smart Sources for sending messages.
@@ -375,12 +383,12 @@ via the configuration option:
 ````
 <option name="file_descriptor_management_behavior" default-value="busy_wait"/>
 ````
-This lowers the latency by eliminating the kernel scheduler wakup overhead.
+This lowers the latency by eliminating the kernel scheduler wakeup overhead.
 It also consumes 100% of the CPU that it is running on.
 
-Thus, the um_lat_ping tool consumes 100% of CPU on two CPUs.
+Thus, the um_lat_ping tool consumes 100% of two CPUs.
 
-We recommend the use of the "-w warmup_loops,warmup_rate" command-line option.
+We recommend using the "-w warmup_loops,warmup_rate" command-line option.
 This exercises the desired number of ping/pong loops without accumulating
 statistics.
 This prevents the statistics from being artificially increased due to
@@ -416,7 +424,7 @@ via the configuration option:
 ````
 <option name="file_descriptor_management_behavior" default-value="busy_wait"/>
 ````
-This lowers the latency by eliminating the kernel scheduler wakup overhead.
+This lowers the latency by eliminating the kernel scheduler wakeup overhead.
 It also consumes 100% of the CPU that it is running on.
 
-Thus, the um_lat_pong tool consumes 100% of CPU on one CPU.
+Thus, the um_lat_pong tool consumes 100% of one CPU.
