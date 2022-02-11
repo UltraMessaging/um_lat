@@ -82,15 +82,10 @@ is used to set affinity for the "context" thread.
 
 ## TEST
 
-### ONLOAD DRIVER
-
-This test uses Solarflare NIC and Onload.
-
 ### KERNEL DRIVER
 
 This test uses Solarflare NIC but not Onload.
 Just the regular kernal network driver is used.
-The latencies are significantly higher because of the kernel overhead.
 
 #### System 1 (pong)
 
@@ -142,4 +137,52 @@ is:
 This means that of the 500,000 round-trip measurements, 281,488 were between 24.9 and 25.0 microseconds.
 
 I imported the 300 lines into Excel and created the following chart:
-![latency chart](lat_test1.png)
+![latency chart 1](lat_test1.png)
+
+### ONLOAD DRIVER
+
+This test uses Solarflare NIC and Onload.
+The latencies are significantly lower because the NIC is accessed in user mode,
+bypassing the kernel.
+
+#### System 1 (pong)
+
+Enter:
+````
+EF_POLL_USEC=-1 taskset -c 4 onload ./um_lat_pong -x um.xml -a 12
+````
+
+#### System 2 (ping)
+
+````
+EF_POLL_USEC=-1 taskset -c 4 .onload ./um_lat_ping -a 12 -x um.xml -m 24 -n 500000 -r 50000 -w 5,5 -H 300,1000 >ping.log; tail ping.log
+````
+
+Here's a sample of the output:
+````
+oo:um_lat_ping[17899]: Using OpenOnload 7.0.0-pON11504 [4]
+oo:um_lat_ping[17899]: Copyright 2006-2019 Solarflare Communications, 2002-2005 Level 5 Networks
+Core-7911-1: Onload extensions API has been dynamically loaded
+Core-9941-2212: specified smart source retention buffer count of 101000 will be increased to the next highest power of two: 131072
+Core-10403-150: Context (0x27be120) created with ContextID (4063600122) and ContextName [(NULL)]
+Core-9941-2212: specified smart source retention buffer count of 101000 will be increased to the next highest power of two: 131072
+0
+0
+0
+0
+0
+0
+o_histogram=300,1000, hist_overflows=0, hist_min_sample=8188, hist_max_sample=30437,
+hist_num_samples=500000, average_sample=8537,
+actual_sends=500000, duration_ns=9999980898, result_rate=49999.995510, global_max_tight_sends=1, max_flight_size=500004
+Rcv: num_rcv_msgs=500004, num_rx_msgs=0, num_unrec_loss=0, 
+````
+
+This demonstrates 8537 nanoseconds (8.5 microseconds) round-trip latency.
+A reasonable approximation of the one-way latency is simply half that: 4.25
+microseconds.
+
+#### Histogram
+
+Here's the Excel chart:
+![latency chart 2](lat_test2.png)
