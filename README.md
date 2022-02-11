@@ -42,6 +42,13 @@ the results of which are outlined in this document.
 
 For maximum sustainable throughput testing, see https://github.com/UltraMessaging/um_perf
 
+The tests described below were run on Informatica hardware and gave the
+following results:
+
+* 12.1 microseconds one-way latency (with kernel network driver)
+* 4.25 microseconds one-way latency (with Onload user-mode driver)
+
+
 ## ENVIRONMENT
 
 The commands and scripts in this repository assume four environment
