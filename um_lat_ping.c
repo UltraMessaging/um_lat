@@ -189,9 +189,9 @@ void get_my_opts(int argc, char **argv)
 
 
 /* Histogram. */
-int *hist_buckets = NULL;
-int hist_min_sample = 999999999;
-int hist_max_sample = 0;
+uint64_t *hist_buckets = NULL;
+uint64_t hist_min_sample = 999999999;
+uint64_t hist_max_sample = 0;
 int hist_overflows = 0;  /* Number of values above the last bucket. */
 int hist_num_samples = 0;
 uint64_t hist_sample_sum = 0;
@@ -214,12 +214,12 @@ void hist_init()
 
 void hist_create()
 {
-  hist_buckets = (int *)malloc(hist_num_buckets * sizeof(int));
+  hist_buckets = (uint64_t *)malloc(hist_num_buckets * sizeof(uint64_t));
 
   hist_init();
 }  /* hist_create */
 
-void hist_input(int in_sample)
+void hist_input(uint64_t in_sample)
 {
   ASSRT(hist_buckets != NULL);
 
@@ -233,7 +233,7 @@ void hist_input(int in_sample)
     hist_min_sample = in_sample;
   }
 
-  int bucket = in_sample / hist_ns_per_bucket;
+  uint64_t bucket = in_sample / hist_ns_per_bucket;
   if (bucket >= hist_num_buckets) {
     hist_overflows++;
   }
@@ -246,9 +246,9 @@ void hist_print()
 {
   int i;
   for (i = 0; i < hist_num_buckets; i++) {
-    printf("%d\n", hist_buckets[i]);
+    printf("%"PRIu64"\n", hist_buckets[i]);
   }
-  printf("o_histogram=%s, hist_overflows=%d, hist_min_sample=%d, hist_max_sample=%d,\n",
+  printf("o_histogram=%s, hist_overflows=%d, hist_min_sample=%"PRIu64", hist_max_sample=%"PRIu64",\n",
       o_histogram, hist_overflows, hist_min_sample, hist_max_sample);
   uint64_t average_sample = hist_sample_sum / (uint64_t)hist_num_samples;
   printf("hist_num_samples=%d, average_sample=%d,\n",
@@ -321,7 +321,8 @@ int force_reclaim_cb(const char *topic_str, lbm_uint_t seqnum, void *clientd)
   fprintf(stderr, "force_reclaim_cb: topic_str='%s', seqnum=%d, cur_flight_size=%d, max_flight_size=%d,\n",
       topic_str, seqnum, cur_flight_size, max_flight_size);
 
-  cur_flight_size --;  /* Adjust flight size for reclaim. */
+  __sync_fetch_and_sub(&cur_flight_size, 1);  /* Adjust flight size for reclaim. */
+  ASSRT(cur_flight_size >= 0);  /* Die if negative. */
 
   return 0;
 }  /* force_reclaim_cb */
@@ -339,6 +340,8 @@ void create_source(lbm_context_t *ctx)
   /* Set some options in code. */
   E(lbm_src_topic_attr_create(&src_attr));
 
+  /* E(lbm_src_topic_attr_str_setopt(src_attr, "ume_session_id", "0x6")); */
+
   /* Get notified for forced reclaims (should not happen). */
   lbm_ume_src_force_reclaim_func_t force_reclaim_cb_conf;
   force_reclaim_cb_conf.func = force_reclaim_cb;
@@ -346,7 +349,7 @@ void create_source(lbm_context_t *ctx)
   E(lbm_src_topic_attr_setopt(src_attr, "ume_force_reclaim_function",
       &force_reclaim_cb_conf, sizeof(force_reclaim_cb_conf)));
 
-  /* The "ping" program sends messages to the "ping" topic. */
+  /* The "ping" program sends messages to "topic1". */
   E(lbm_src_topic_alloc(&topic_obj, ctx, "topic1", src_attr));
   if (o_generic_src) {
     E(lbm_src_create(&src, ctx, topic_obj,
@@ -432,6 +435,7 @@ int rcv_callback(lbm_rcv_t *rcv, lbm_msg_t *msg, void *clientd)
 
     num_rcv_msgs++;
     if (perf_msg->flags & FLAGS_TIMESTAMP) {
+if (((int)ns_rtt) < 0) { printf("ns_rtt=%"PRIu64"\n", ns_rtt); fflush(stdout);} /*???*/
       hist_input((int)ns_rtt);
     }
 
@@ -486,13 +490,11 @@ int send_loop(int num_sends, uint64_t sends_per_sec)
     }
 
     /* If we are behind where we should be, get caught up. */
-    struct timespec send_start_ts;
-    CPRT_GETTIME(&send_start_ts);
     while (num_sent < should_have_sent) {
       if (o_generic_src) {
         /* Construct message. */
         perf_msg->msg_num = num_sent;
-        perf_msg->send_ts = send_start_ts;
+        CPRT_GETTIME(&(perf_msg->send_ts));
         perf_msg->flags = msg_flags;
 
         /* Send message. */
@@ -507,7 +509,7 @@ int send_loop(int num_sends, uint64_t sends_per_sec)
         perf_msg = (perf_msg_t *)ssrc_buff;
         /* Construct message in shared memory buffer. */
         perf_msg->msg_num = num_sent;
-        perf_msg->send_ts = send_start_ts;
+        CPRT_GETTIME(&(perf_msg->send_ts));
         perf_msg->flags = msg_flags;
 
         /* Send message and get next buffer from shared memory. */
@@ -582,7 +584,7 @@ int main(int argc, char **argv)
   if (strlen(o_persist) > 0) {
     /* Wait for registration complete. */
     while (registration_complete < 1) {
-      sleep(1);
+      CPRT_SLEEP_SEC(1);
       if (registration_complete < 1) {
         printf("Waiting for %d store registrations.\n",
             1 - registration_complete);
@@ -592,12 +594,7 @@ int main(int argc, char **argv)
     /* Wait for receiver(s) to register and are ready to receive messages.
      * There is a proper algorithm for this, but it adds unnecessary complexity
      * and obscures the perf test algorithms. Sleep for simplicity. */
-    sleep(5);
-
-    if (warmup_loops > 1) {
-      /* Warmup loops to get CPU caches loaded. */
-      send_loop(warmup_loops, warmup_rate);
-    }
+    CPRT_SLEEP_SEC(5);
   }
   else {  /* strlen(o_persist) == 0 : Streaming (not persistence). */
     if (warmup_loops > 0) {
@@ -605,14 +602,15 @@ int main(int argc, char **argv)
        * NOTE: this message will NOT be received (head loss)
        * because topic resolution hasn't completed. */
       send_loop(1, 999999999);
+      warmup_loops -= 1;
     }
     /* Wait for topic resolution to complete. */
-    sleep(1);
+    CPRT_SLEEP_SEC(1);
+  }
 
-    if (warmup_loops > 1) {
-      /* Warmup loops to get CPU caches loaded. */
-      send_loop(warmup_loops - 1, warmup_rate);
-    }
+  if (warmup_loops > 0) {
+    /* Warmup loops to get CPU caches loaded. */
+    send_loop(warmup_loops, warmup_rate);
   }
 
   /* No longer warming up, subsequent messages should be accumulated. */
@@ -626,6 +624,10 @@ int main(int argc, char **argv)
   actual_sends = send_loop(o_num_msgs, o_rate);
   CPRT_GETTIME(&end_ts);
   CPRT_DIFF_TS(duration_ns, end_ts, start_ts);
+
+  if (o_linger_ms > 0) {
+    CPRT_SLEEP_MS(o_linger_ms);
+  }
 
   ASSRT(num_rcv_msgs > 0);
 
@@ -654,12 +656,8 @@ int main(int argc, char **argv)
         break;
       }
       printf("Waiting for flight size %d to clear.\n", cur_flight_size);
-      sleep(num_checks);  /* Sleep longer each check. */
+      CPRT_SLEEP_SEC(num_checks);  /* Sleep longer each check. */
     }
-  }
-
-  if (o_linger_ms > 0) {
-    usleep(o_linger_ms * 1000);
   }
 
   delete_source();

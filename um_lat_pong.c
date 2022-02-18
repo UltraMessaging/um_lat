@@ -190,7 +190,8 @@ int force_reclaim_cb(const char *topic_str, lbm_uint_t seqnum, void *clientd)
   fprintf(stderr, "force_reclaim_cb: topic_str='%s', seqnum=%d, cur_flight_size=%d, max_flight_size=%d,\n",
       topic_str, seqnum, cur_flight_size, max_flight_size);
 
-  cur_flight_size --;  /* Adjust flight size for reclaim. */
+  __sync_fetch_and_sub(&cur_flight_size, 1);  /* Adjust flight size for reclaim. */
+  ASSRT(cur_flight_size >= 0);  /* Die if negative. */
 
   return 0;
 }  /* force_reclaim_cb */
@@ -208,6 +209,8 @@ void create_source(lbm_context_t *ctx)
   /* Set some options in code. */
   E(lbm_src_topic_attr_create(&src_attr));
 
+  /* E(lbm_src_topic_attr_str_setopt(src_attr, "ume_session_id", "0x7")); */
+
   /* Get notified for forced reclaims (should not happen). */
   lbm_ume_src_force_reclaim_func_t force_reclaim_cb_conf;
   force_reclaim_cb_conf.func = force_reclaim_cb;
@@ -215,7 +218,7 @@ void create_source(lbm_context_t *ctx)
   E(lbm_src_topic_attr_setopt(src_attr, "ume_force_reclaim_function",
       &force_reclaim_cb_conf, sizeof(force_reclaim_cb_conf)));
 
-  /* The "pong" program sends messages to the "pong" topic. */
+  /* The "pong" program sends messages to "topic2". */
   E(lbm_src_topic_alloc(&topic_obj, ctx, "topic2", src_attr));
   if (o_generic_src) {
     E(lbm_src_create(&src, ctx, topic_obj,
@@ -310,6 +313,10 @@ int rcv_callback(lbm_rcv_t *rcv, lbm_msg_t *msg, void *clientd)
       E(e);  /* If error, print message and fail. */
     }
     num_sent++;
+    int cur = __sync_fetch_and_add(&cur_flight_size, 1);
+    if (cur > max_flight_size) {
+      max_flight_size = cur;
+    }
 
     break;
   }
@@ -341,7 +348,7 @@ int main(int argc, char **argv)
   /* Set some options in code. */
   E(lbm_rcv_topic_attr_create(&rcv_attr));
 
-  E(lbm_rcv_topic_attr_str_setopt(rcv_attr, "ume_session_id", "0x6"));
+  E(lbm_rcv_topic_attr_str_setopt(rcv_attr, "ume_session_id", "0x7"));
 
   E(lbm_rcv_topic_lookup(&topic_obj, ctx, "topic1", rcv_attr));
   E(lbm_rcv_create(&rcv_obj, ctx, topic_obj, rcv_callback, NULL, NULL));
@@ -349,7 +356,7 @@ int main(int argc, char **argv)
   create_source(ctx);
 
   /* The subscriber must be "kill"ed externally. */
-  sleep(2000000000);  /* 23+ centuries. */
+  CPRT_SLEEP_SEC(2000000000);  /* 23+ centuries. */
 
   /* Should delete receivers and context, but this tool never exits. */
 

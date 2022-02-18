@@ -3,6 +3,7 @@
     <web-monitor>*:12012</web-monitor>
     <log type="console"></log>
     <xml-config>um.xml</xml-config>
+    <pidfile>store_2a.pid</pidfile>
   </daemon>
 
   <stores>
