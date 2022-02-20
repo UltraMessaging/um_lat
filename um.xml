@@ -14,7 +14,6 @@
         <option name="fd_management_type" default-value="epoll"/>
         <option name="multiple_receive_maximum_datagrams" default-value="100"/>
         <option name="transport_lbtrm_recycle_receive_buffers" default-value="1"/>
-        <option name="file_descriptor_management_behavior" default-value="busy_wait"/>
       </options>
       <options type="source">
         <option name="transport" default-value="lbtrm"/>
