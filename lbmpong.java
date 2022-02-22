@@ -92,13 +92,6 @@ class lbmpong
 		return args[argNum];
 	}  // optArg
 
-	private void optError(String errMsg)
-	{
-		System.err.println(errMsg);
-		System.err.println("Use option '-h' for command line help");
-		System.exit(1);
-	}  // optError
-
 	public static void main(String[] args)
 	{
 		@SuppressWarnings("unused")
@@ -112,6 +105,7 @@ class lbmpong
 
 	private void process_cmdline(String[] args)
 	{
+		boolean error = false;
 		int argNum = 0;
 		while (argNum < args.length)
 		{
@@ -121,7 +115,8 @@ class lbmpong
 			}
 			if (args[argNum].length() != 2)
 			{
-				optError("Error, '" + args[argNum] + "' not a valid option");
+				System.err.println("Error, '" + args[argNum] + "' not a valid option (use '-h' for help)");
+				System.exit(1);
 			}
 
 			char c = args[argNum].charAt(1);  // Skip leading '-'.
@@ -131,7 +126,15 @@ class lbmpong
 				switch (c)
 				{
 					case 'c':
-						LBM.setConfiguration(optArg(args, argNum ++));
+						try 
+						{
+							LBM.setConfiguration(optArg(args, argNum ++));
+						}
+						catch (LBMException ex) 
+						{
+							System.err.println("Error setting LBM configuration: " + ex.toString());
+							System.exit(1);
+						}
 						break;
 					case 'C':
 						rtt_collect = true;
@@ -190,38 +193,34 @@ class lbmpong
 						verbose = true;
 						break;
 					default:
-						optError("Error, '" + c + "' not a valid option");
+						error = true;
+						break;
 				}
+				if (error)
+					break;
 			}
 			catch (Exception e) 
 			{
 				/* type conversion exception */
-				optError("lbmpong: error processing option '-" + c + "':\n  " + e);
+				System.err.println("lbmpong: error\n" + e);
+				print_help_exit(1);
 			}
-		}  // while
-
-		// Get id.
-		if (argNum >= args.length)
+		}
+		if (error || argNum >= args.length)
 		{
-			optError("Error, missing id ('ping' or 'pong')");
+			/* An error occurred processing the command line - print help and exit */
+			print_help_exit(1);
 		}
 		if (args[argNum].equalsIgnoreCase("ping"))
 		{
 			ping = true;
 		}
-		else if (args[argNum].equalsIgnoreCase("pong"))
+		else if (!args[argNum].equalsIgnoreCase("pong"))
 		{
-			ping = false;
-		}
-		else
-		{
-			optError("Error, arg '" + args[argNum] + "' must be 'ping' or 'pong'");
-		}
-		argNum ++;
-
-		if (argNum != args.length)
-		{
-			optError("Error, unexpected argument: '" + args[argNum] + "'");
+			System.err.println("else if (!args[gopt.getOptind()].equals(\"pong\"))");
+			System.err.println(LBM.version());
+			System.err.println(usage);
+			System.exit(1);
 		}
 	}
 	
@@ -280,6 +279,14 @@ class lbmpong
 			System.err.println("Error initializing LBM: " + ex.toString());
 			System.exit(1);
 		}
+
+		lbm.setLogger(new LBMLogging() {
+			@Override
+			public void LBMLog(int logLevel, String message) {
+				// A real application should include a high-precision time stamp.
+				System.out.println("appLogger: logLevel=" + logLevel + ", message=" + message);
+			}
+		});
 
 		process_cmdline(args);
 
