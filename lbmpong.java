@@ -22,6 +22,16 @@ import java.nio.ByteBuffer;
   THE LIKELIHOOD OF SUCH DAMAGES.
 */
 
+// Class to intercept UM library's logging.
+class AppLogger implements LBMLogging
+{
+	@Override
+	public void LBMLog(int logLevel, String message) {
+		// A real application should include a high-precision time stamp.
+		System.out.println("AppLogger: logLevel=" + logLevel + ", message=" + message);
+	}
+}
+
 class lbmpong
 {
 	private static int msecpause = 0;
@@ -105,7 +115,7 @@ class lbmpong
 		int argNum = 0;
 		while (argNum < args.length)
 		{
-			if (args[argNum].startsWith("-"))
+			if (! args[argNum].startsWith("-"))
 			{
 				break;  // No more options, only positional parameters left.
 			}
@@ -276,13 +286,8 @@ class lbmpong
 			System.exit(1);
 		}
 
-		lbm.setLogger(new LBMLogging() {
-			@Override
-			public void LBMLog(int logLevel, String message) {
-				// A real application should include a high-precision time stamp.
-				System.out.println("appLogger: logLevel=" + logLevel + ", message=" + message);
-			}
-		});
+		AppLogger appLogger = new AppLogger();
+		lbm.setLogger(appLogger);
 
 		process_cmdline(args);
 
