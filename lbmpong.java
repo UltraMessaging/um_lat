@@ -85,10 +85,6 @@ class lbmpong
 		{
 			throw new IllegalArgumentException("Option '" + args[argNum - 1] + "' requires argument.");
 		}
-		if (args[argNum].charAt(0) == '-')
-		{
-			System.err.println("Warning, arg to '" + args[argNum - 1] + "' starts with '-'");
-		}
 		return args[argNum];
 	}  // optArg
 
@@ -109,7 +105,7 @@ class lbmpong
 		int argNum = 0;
 		while (argNum < args.length)
 		{
-			if (args[argNum].charAt(0) != '-')
+			if (args[argNum].startsWith("-"))
 			{
 				break;  // No more options, only positional parameters left.
 			}
