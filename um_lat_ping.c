@@ -646,8 +646,8 @@ int main(int argc, char **argv)
   hist_create();
 
   /* Leave "comma space" at end of line to make parsing output easier. */
-  printf("o_affinity_rcv=%d, o_config=%s, o_generic_src=%d, o_histogram=%s, o_linger_ms=%d, o_msg_len=%d, o_num_msgs=%d, o_persist_mode='%s', o_rate=%d, o_warmup=%s, xml_config=%s, \n",
-      o_affinity_rcv, o_config, o_generic_src, o_histogram, o_linger_ms, o_msg_len, o_num_msgs, o_persist_mode, o_rate, o_warmup, o_xml_config);
+  printf("o_affinity_rcv=%d, o_config=%s, o_generic_src=%d, o_histogram=%s, o_linger_ms=%d, o_msg_len=%d, o_num_msgs=%d, o_persist_mode='%s', o_rcv_thread='%s', o_rate=%d, o_warmup=%s, xml_config=%s, \n",
+      o_affinity_rcv, o_config, o_generic_src, o_histogram, o_linger_ms, o_msg_len, o_num_msgs, o_persist_mode, o_rcv_thread, o_rate, o_warmup, o_xml_config);
 
   msg_buf = (char *)malloc(o_msg_len);
 

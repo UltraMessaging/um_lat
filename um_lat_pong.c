@@ -429,8 +429,8 @@ int main(int argc, char **argv)
 
   get_my_opts(argc, argv);
 
-  printf("o_affinity_rcv=%d, o_config=%s, o_exit_on_eos=%d, o_persist_mode='%s', o_xml_config=%s, \n",
-      o_affinity_rcv, o_config, o_exit_on_eos, o_persist_mode, o_xml_config);
+  printf("o_affinity_rcv=%d, o_config=%s, o_exit_on_eos=%d, o_persist_mode='%s', o_rcv_thread='%s', o_xml_config=%s, \n",
+      o_affinity_rcv, o_config, o_exit_on_eos, o_persist_mode, o_rcv_thread, o_xml_config);
 
   create_context();
 
