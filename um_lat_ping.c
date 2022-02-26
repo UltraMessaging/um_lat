@@ -268,6 +268,24 @@ void hist_input(uint64_t in_sample)
   }
 }  /* hist_input */
 
+/* Get the latency (in ns) which "percentile" percent of samples are below.
+ * Returns -1 if not calculable (i.e. too many overflows). */
+int hist_percentile(double percentile)
+{
+  int i;
+  int needed_samples = (int)((double)hist_num_samples * percentile / 100.0);
+  int found_samples = 0;
+
+  for (i = 0; i < hist_num_buckets; i++) {
+    found_samples += hist_buckets[i];
+    if (found_samples > needed_samples) {
+      return (i+1) * hist_ns_per_bucket;
+    }
+  }
+
+  return -1.0;
+}  /* hist_percentile */
+
 void hist_print()
 {
   int i;
@@ -279,6 +297,10 @@ void hist_print()
   uint64_t average_sample = hist_sample_sum / (uint64_t)hist_num_samples;
   printf("hist_num_samples=%d, average_sample=%d,\n",
       hist_num_samples, (int)average_sample);
+
+  printf("Percentiles: 90=%d, 99=%d, 99.9=%d, 99.99=%d, 99.999=%d\n",
+      hist_percentile(90.0), hist_percentile(99.0), hist_percentile(99.9),
+      hist_percentile(99.99), hist_percentile(99.999));
 }  /* hist_print */
 
 

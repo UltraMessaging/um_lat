@@ -93,28 +93,24 @@ variables are set up: LBM_LICENSE_INFO, LBM, LD_LIBRARY_PATH, and PATH.
 Here's an example of setting them up:
 ````
 export LD_LIBRARY_PATH LBM_LICENSE_INFO LBM PATH
-
 LBM_LICENSE_INFO="Product=LBM,UME,UMQ,UMDRO:Organization=UM RnD sford (RnD):Expiration-Date=never:License-Key=xxxx xxxx xxxx xxxx"
-
 # Path to the install directory for the UM platform.
 LBM="/home/sford/UMP_6.14/Linux-glibc-2.17-x86_64"
-
-if [ -z "$LD_LIBRARY_PATH" ]
-  then LD_LIBRARY_PATH="$LBM/lib"
-  else LD_LIBRARY_PATH="$LBM/lib:$LD_LIBRARY_PATH"
-fi
-
+LD_LIBRARY_PATH="$LBM/lib"
 PATH="$LBM/bin:$PATH"
 ````
 
 ### REQUIREMENTS
 
-1. 5 Linux-based hosts (X86, 64-bit).
+1. 3 Linux-based hosts (X86, 64-bit).
 16 gigabytes or more memory.
-At least one host must have a fast disk.
+One host should have a fast disk.
 These should be "bare metal" machines, NOT virtual machines.
-2. C compiler (gcc) and related tools.
-3. Ultra Messaging version 6.14, including development files (lbm.h,
+2. 10-gigabit network.
+For the lowest latency, a kernel-bypass network driver is recommended.
+For example, Solarflare NIC and Onload driver.
+3. C compiler (gcc) and related tools.
+4. Ultra Messaging version 6.14, including development files (lbm.h,
 libraries, etc.).
 
 See [Test Hardware](#informatica-test-hardware) for details of Informatica's
@@ -132,13 +128,10 @@ CPUs that are "close" to the NIC.
 See [Choose CPUs](https://github.com/UltraMessaging/um_perf#choose-cpus)
 for advice on how to determine which CPUs are closest to the NIC.
 
-On our test systems, CPU numbers 4 and 12 are the closest.
-
-The "um_lat_ping" and "um_lat_pong" tools generally have two threads
-during normal execution.
-In the demonstrations that follow, the "taskset" command is used to
-set affinity for the "main" thread, and the "-a" command-line option
-is used to set affinity for the "context" thread.
+On our test systems, CPU numbers 4 and 12 are the closest,
+so you will see those CPU numbers referenced in the example commands
+("-A" and "-a" options for um_lat_ping, "-a" for um_lat_pong).
+You should substitute your optimal CPUs.
 
 ### UPDATE CONFIGURATION FILE
 
@@ -181,9 +174,7 @@ Here is an excerpt:
 Search this file for "10.29" to find all lines that contain a network address.
 Change them for your network.
 
-Search this file for "239" to find all lines that contain multicast groups,
-and "10.29" for other site-specific IPs.
-
+Search this file for "239" to find all lines that contain multicast groups.
 We use multicast groups "239.101.3.xx".
 Change those to the group provided by your network admins.
 
@@ -200,6 +191,12 @@ We recommend conducting a configuration workshop with Informatica.
 
 ## TEST STREAMING
 
+These tests are conducted with the following parameters:
+* Publish rate: 50,000 msgs/sec.
+* Message size: 24 bytes.
+* Number of messages: 500,000 (preceded by 5 "warmup" messages).
+
+
 ### KERNEL DRIVER
 
 This test uses Solarflare NIC but not Onload.
@@ -209,53 +206,54 @@ Just the regular kernel network driver is used.
 
 Enter:
 ````
-taskset -c 4 ./um_lat_pong -x um.xml -a 12
+./um_lat_pong -s f -x um.xml -a 12 -E
 ````
 
 #### System 2 (ping)
 
 ````
-taskset -c 4 ./um_lat_ping -a 12 -x um.xml -m 24 -n 500000 -r 50000 -w 5,5 -H 300,1000 >ping.log; tail ping.log
+./um_lat_ping -s f -A 4 -a 12 -x um.xml -m 24 -n 500000 -r 50000 -w 5,5 -H 300,1000 >ping.log; tail ping.log
 ````
 
 Here's a sample of the output:
 ````
-Core-9941-2212: specified smart source retention buffer count of 101000 will be increased to the next highest power of two: 131072
-Core-10403-150: Context (0x1e32540) created with ContextID (2670192184) and ContextName [(NULL)]
-Core-9941-2212: specified smart source retention buffer count of 101000 will be increased to the next highest power of two: 131072
-0
-0
-0
-0
-0
-0
-o_histogram=300,1000, hist_overflows=0, hist_min_sample=20803, hist_max_sample=90719,
-hist_num_samples=500000, average_sample=24320,
-actual_sends=500000, duration_ns=9999983930, result_rate=49999.980350, global_max_tight_sends=8, max_flight_size=500004
+...
+o_histogram=300,1000, hist_overflows=0, hist_min_sample=19991, hist_max_sample=115171,
+hist_num_samples=500000, average_sample=24134,
+Percentiles: 90=25000, 99=34000, 99.9=51000, 99.99=83000, 99.999=113000
+actual_sends=500000, duration_ns=9999983492, result_rate=49999.982540, global_max_tight_sends=6, max_flight_size=500004
 Rcv: num_rcv_msgs=500004, num_rx_msgs=0, num_unrec_loss=0,
 ````
 
-This demonstrates 24320 nanoseconds (24.3 microseconds) round-trip latency.
+This demonstrates 24,134 nanoseconds (24.1 microseconds) round-trip latency.
 A reasonable approximation of the one-way latency is simply half that: 12.1
 microseconds.
 
+Note the percentiles, with 99.999% of samples being below 113,000 nanoseconds.
+We will see less jitter using Onload.
+
 #### Histogram
 
-To get percentiles, the "um_lat_pong" tool maintains a histogram of
-latencies.
 The "-H 300,1000" command-line option tells the tool to use 300 buckets with
 1000 nanoseconds for each bucket.
 Thus, the "ping.log" contains 300 lines, with each line indicating the number
 of samples with latencies within that bucket's range.
-For example, in the above test run, the 25th histogram line
+For example, in the above test run, the 24th histogram line
 is:
 ````
-281488
+337551
 ````
-This means that of the 500,000 round-trip measurements, 281,488 were between 24.9 and 25.0 microseconds.
+This means that of the 500,000 round-trip measurements, 337,551 were between 24.0 and 24.999 microseconds.
 
 I imported the 300 lines into Excel and created the following chart:
 ![latency chart 1](lat_test1.png)
+
+Let's change the Y axis to logarithmic to reveal the latency outliers:
+![latency chart 1 logarithmic](lat_test1_log.png)
+Remember that a logarithmic scale greatly exaggerates small values.
+For example, the spike at bucket 113 only has a value of 6, meaning that only 6 of 500,000 round trips had
+latency between 112,000 and 113,000 nanoseconds.
+
 
 ### ONLOAD DRIVER
 
@@ -267,44 +265,41 @@ bypassing the kernel.
 
 Enter:
 ````
-EF_POLL_USEC=-1 taskset -c 4 onload ./um_lat_pong -x um.xml -a 12
+onload ./um_lat_pong -s f -x um.xml -a 12 -E
 ````
 
 #### System 2 (ping)
 
 ````
-EF_POLL_USEC=-1 taskset -c 4 .onload ./um_lat_ping -a 12 -x um.xml -m 24 -n 500000 -r 50000 -w 5,5 -H 300,1000 >ping.log; tail ping.log
+onload ./um_lat_ping -s f -A 4 -a 12 -x um.xml -m 24 -n 500000 -r 50000 -w 5,5 -H 300,1000 >ping.log; tail ping.log
 ````
 
 Here's a sample of the output:
 ````
-oo:um_lat_ping[17899]: Using OpenOnload 7.0.0-pON11504 [4]
-oo:um_lat_ping[17899]: Copyright 2006-2019 Solarflare Communications, 2002-2005 Level 5 Networks
-Core-7911-1: Onload extensions API has been dynamically loaded
-Core-9941-2212: specified smart source retention buffer count of 101000 will be increased to the next highest power of two: 131072
-Core-10403-150: Context (0x27be120) created with ContextID (4063600122) and ContextName [(NULL)]
-Core-9941-2212: specified smart source retention buffer count of 101000 will be increased to the next highest power of two: 131072
-0
-0
-0
-0
-0
-0
-o_histogram=300,1000, hist_overflows=0, hist_min_sample=8188, hist_max_sample=30437,
-hist_num_samples=500000, average_sample=8537,
-actual_sends=500000, duration_ns=9999980898, result_rate=49999.995510, global_max_tight_sends=1, max_flight_size=500004
-Rcv: num_rcv_msgs=500004, num_rx_msgs=0, num_unrec_loss=0, 
+...
+o_histogram=300,1000, hist_overflows=0, hist_min_sample=10782, hist_max_sample=66451,
+hist_num_samples=500000, average_sample=13243,
+Percentiles: 90=13000, 99=14000, 99.9=23000, 99.99=28000, 99.999=32000
+actual_sends=500000, duration_ns=9999981122, result_rate=49999.994390, global_max_tight_sends=1, max_flight_size=500004
+Rcv: num_rcv_msgs=500004, num_rx_msgs=0, num_unrec_loss=0,
 ````
 
-This demonstrates 8537 nanoseconds (8.5 microseconds) round-trip latency.
-A reasonable approximation of the one-way latency is simply half that: 4.25
+This demonstrates 13,243 nanoseconds (13.2 microseconds) round-trip latency.
+A reasonable approximation of the one-way latency is simply half that: 6.6
 microseconds.
+This is a significant improvement over the kernel driver.
+But also look at the percentiles.
+Onload greatly reduces the latency outliers.
 
 #### Histogram
 
 Here's the Excel chart:
 ![latency chart 2](lat_test2.png)
 
+And here's the same chart with a logarithmic Y axis to emphasize outliers:
+![latency chart 2](lat_test2_log.png)
+
+Compared to the kernel results, Onload greatly reduces latency outliers.
 
 ## TEST PERSISTENCE
 
@@ -313,13 +308,13 @@ TBD.
 
 ## MEASUREMENT OUTLIERS
 
-The SmartSource transport code is written to provide a very constant
-execution time.
+The UM transport code used with these tests provide a very constant
+execution time per message.
 Dynamic memory (malloc/free) is not used during message transfer.
 There is very little cause for measurement outliers
-(jitter) in the SmartSource code itself.
+(jitter) in the UM code itself.
 
-However, the measurements made at Informatica show significant outliers.
+However, the measurements made at Informatica show outliers.
 Two environmental factors cause these outliers:
 * Interruptions.
 * Memory contention and cache invalidation.
@@ -367,27 +362,29 @@ All the latency calculations are done in the "ping" tool.
 
 The um_lat_ping tool prints a brief help when the "-h" flag is supplied:
 ````
-Usage: um_lat_ping [-h] [-a affinity_cpu] [-c config] [-g] [-H hist_num_buckets,hist_ns_per_bucket] [-l linger_ms] [-m msg_len] [-n num_msgs] [-p persist_mode] [-r rate] [-w warmup_loops,warmup_rate] [-x xml_config]
+Usage: um_lat_ping [-h] [-A affinity_src] [-a affinity_rcv] [-c config] [-g] [-H hist_num_buckets,hist_ns_per_bucket] [-l linger_ms] [-m msg_len] [-n num_msgs] [-p persist_mode] [-R rcv_thread] [-r rate] [-s spin_method] [-w warmup_loops,warmup_rate] [-x xml_config]
 where:
   -h : print help
-  -a affinity_cpu : bitmap for CPU affinity for send thread [-1]
+  -A affinity_src : CPU number (0..N-1) for send thread (-1=none) [-1]
+  -a affinity_rcv : CPU number (0..N-1) for receive thread (-1=none) [-1]
   -c config : configuration file; can be repeated []
   -g : generic source [0]
   -H hist_num_buckets,hist_ns_per_bucket : send time histogram [0,0]
   -l linger_ms : linger time before source delete [1000]
   -m msg_len : message length [0]
   -n num_msgs : number of messages to send [0]
-  -p ''|r|s : persist mode (empty=streaming, r=RPP, s=SPP) []
+  -p persist_mode : '' (empty)=streaming, 'r'=RPP, 's'=SPP []
+  -R rcv_thread : '' (empty)=main context, 'c'=separate context, 'x'=XSP []
   -r rate : messages per second to send [0]
+  -s spin_method : '' (empty)=no spin, 'f'=fd mgt busy, 'p'=proc events []
   -w warmup_loops,warmup_rate : messages to send before measurement [0,0]
   -x xml_config : XML configuration file []
 ````
 
 You can modify send rate, message length, number of messages, etc.
 
-This tool has two "hot" threads: main and context.
-The main thread sends messages,
-and the context thread receives the reflected messages.
+This tool has two "hot" threads: sender (main) and
+receiver (configurable between context or XSP).
 
 Each message is loaded with a nanosecond-resolution timestamp.
 When the reflected message is received, a new timestamp is
@@ -401,8 +398,9 @@ The main thread sends messages using a busy-looping algorithm.
 This evenly spaces the messages, even at high message rates.
 It also consumes 100% of the CPU that it is running on.
 
-The context thread is also configured to do busy looping
-via the configuration option:
+The receive thread can be configured to do busy looping
+via the command-line option "-s f",
+which tells the tool to add the configuration option:
 ````
 <option name="file_descriptor_management_behavior" default-value="busy_wait"/>
 ````
@@ -416,34 +414,38 @@ This exercises the desired number of ping/pong loops without accumulating
 statistics.
 This prevents the statistics from being artificially increased due to
 OS and CPU startup issues, like demand paging and cache misses.
-We have found that a small number like 5 suffices.
+We have found that a small number like 5 is usually enough.
 
 
 ### UM_LAT_PONG.C
 
 The um_lat_pong tool prints a brief help when the "-h" flag is supplied:
 ````
-Usage: um_lat_pong [-h] [-a affinity_cpu] [-c config] [-E] [-g] [-p persist_mode] [-x xml_config]
+Usage: um_lat_pong [-h] [-a affinity_rcv] [-c config] [-E] [-g] [-p persist_mode] [-R rcv_thread] [-s spin_method] [-x xml_config]
 where:
   -h : print help
-  -a affinity_cpu : CPU number (0..N-1) for receive thread [-1]
+  -a affinity_rcv : CPU number (0..N-1) for receive thread (-1=none) [-1]
   -c config : configuration file; can be repeated []
   -E : exit on EOS [0]
   -g : generic source [0]
-  -p ''|r|s : persist mode (empty=streaming, r=RPP, s=SPP) []
+  -p persist_mode : '' (empty)=streaming, 'r'=RPP, 's'=SPP []
+  -R rcv_thread : '' (empty)=main context, 'c'=separate context, 'x'=XSP []
+  -s spin_method : '' (empty)=no spin, 'f'=fd mgt busy, 'p'=proc events []
   -x xml_config : configuration file []
 ````
 
-This tool has one "hot" thread: context.
-The main thread initializes the tool and then sleeps forever.
+This tool has one "hot" thread: receiver
+(configurable between context or XSP).
+The main thread initializes and then sleeps forever.
 All the work of receiving messages and reflecting them back is 
-done in the context thread.
+done in the receiver thread.
 
 By default, the tool uses Smart Sources for sending messages.
 The "-g" command-line option switches to generic sources.
 
-The context thread is configured to do busy looping
-via the configuration option:
+The receive thread can be configured to do busy looping
+via the command-line option "-s f",
+which tells the tool to add the configuration option:
 ````
 <option name="file_descriptor_management_behavior" default-value="busy_wait"/>
 ````
