@@ -82,7 +82,7 @@ The tests described below were run on Informatica hardware and gave the
 following results:
 
 * 12.1 microseconds one-way latency (with kernel network driver)
-* 4.25 microseconds one-way latency (with Onload user-mode driver)
+* 6.6 microseconds one-way latency (with Onload user-mode driver)
 
 
 ### ENVIRONMENT
@@ -300,6 +300,10 @@ And here's the same chart with a logarithmic Y axis to emphasize outliers:
 ![latency chart 2](lat_test2_log.png)
 
 Compared to the kernel results, Onload greatly reduces latency outliers.
+Note that the Ultra Messaging code executes the same in both cases.
+I.e. UM does not "know" that it is being used with Onload.
+The greater latency jitter produced by the kernel driver is purely
+the result of calling into the kernel.
 
 ## TEST PERSISTENCE
 
