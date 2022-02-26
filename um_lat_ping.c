@@ -38,8 +38,8 @@ int rcv_callback(lbm_rcv_t *rcv, lbm_msg_t *msg, void *clientd);
 /* Command-line options and their defaults. String defaults are set
  * in "get_my_opts()".
  */
-static int o_affinity_rcv = -1;
 static int o_affinity_src = -1;  /* -A */
+static int o_affinity_rcv = -1;
 static char *o_config = NULL;
 static int o_generic_src = 0;
 static char *o_histogram = NULL;  /* -H */
@@ -48,8 +48,8 @@ static int o_msg_len = 0;
 static int o_num_msgs = 0;
 static char *o_persist_mode = NULL;
 static char *o_rcv_thread = NULL; /* -R */
-static char *o_spin_method = NULL;
 static int o_rate = 0;
+static char *o_spin_method = NULL;
 static char *o_warmup = NULL;
 static char *o_xml_config = NULL;
 
@@ -646,8 +646,8 @@ int main(int argc, char **argv)
   hist_create();
 
   /* Leave "comma space" at end of line to make parsing output easier. */
-  printf("o_affinity_rcv=%d, o_config=%s, o_generic_src=%d, o_histogram=%s, o_linger_ms=%d, o_msg_len=%d, o_num_msgs=%d, o_persist_mode='%s', o_rcv_thread='%s', o_rate=%d, o_warmup=%s, xml_config=%s, \n",
-      o_affinity_rcv, o_config, o_generic_src, o_histogram, o_linger_ms, o_msg_len, o_num_msgs, o_persist_mode, o_rcv_thread, o_rate, o_warmup, o_xml_config);
+  printf("o_affinity_src=%d, o_affinity_rcv=%d, o_config=%s, o_generic_src=%d, o_histogram=%s, o_linger_ms=%d, o_msg_len=%d, o_num_msgs=%d, o_persist_mode='%s', o_rcv_thread='%s', o_rate=%d, o_spin_method='%s', o_warmup=%s, xml_config=%s, \n",
+      o_affinity_src, o_affinity_rcv, o_config, o_generic_src, o_histogram, o_linger_ms, o_msg_len, o_num_msgs, o_persist_mode, o_rcv_thread, o_rate, o_spin_method, o_warmup, o_xml_config);
 
   msg_buf = (char *)malloc(o_msg_len);
 
