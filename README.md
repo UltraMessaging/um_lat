@@ -82,7 +82,7 @@ The tests described below were run on Informatica hardware and gave the
 following results:
 
 * 12.1 microseconds one-way latency (with kernel network driver)
-* 6.6 microseconds one-way latency (with Onload user-mode driver)
+* 5.1 microseconds one-way latency (with Onload network driver)
 
 
 ### ENVIRONMENT
@@ -265,27 +265,27 @@ bypassing the kernel.
 
 Enter:
 ````
-onload ./um_lat_pong -s f -x um.xml -a 12 -E
+EF_POLL_USEC=-1 onload ./um_lat_pong -x um.xml -a 12 -E
 ````
 
 #### System 2 (ping)
 
 ````
-onload ./um_lat_ping -s f -A 4 -a 12 -x um.xml -m 24 -n 500000 -r 50000 -w 5,5 -H 300,1000 >ping.log; tail ping.log
+EF_POLL_USEC=-1 onload ./um_lat_ping -A 4 -a 12 -x um.xml -m 24 -n 500000 -r 50000 -w 5,5 -H 300,1000 >ping.log; tail ping.log
 ````
 
 Here's a sample of the output:
 ````
 ...
-o_histogram=300,1000, hist_overflows=0, hist_min_sample=10782, hist_max_sample=66451,
-hist_num_samples=500000, average_sample=13243,
-Percentiles: 90=13000, 99=14000, 99.9=23000, 99.99=28000, 99.999=32000
-actual_sends=500000, duration_ns=9999981122, result_rate=49999.994390, global_max_tight_sends=1, max_flight_size=500004
+o_histogram=300,1000, hist_overflows=0, hist_min_sample=8746, hist_max_sample=27440,
+hist_num_samples=500000, average_sample=10138,
+Percentiles: 90=10000, 99=12000, 99.9=21000, 99.99=25000, 99.999=26000
+actual_sends=500000, duration_ns=9999981187, result_rate=49999.994065, global_max_tight_sends=1, max_flight_size=500004
 Rcv: num_rcv_msgs=500004, num_rx_msgs=0, num_unrec_loss=0,
 ````
 
-This demonstrates 13,243 nanoseconds (13.2 microseconds) round-trip latency.
-A reasonable approximation of the one-way latency is simply half that: 6.6
+This demonstrates 10,138 nanoseconds (10.1 microseconds) round-trip latency.
+A reasonable approximation of the one-way latency is simply half that: 5.1
 microseconds.
 This is a significant improvement over the kernel driver.
 But also look at the percentiles.
