@@ -236,14 +236,16 @@ We will see less jitter using Onload.
 
 The "-H 300,1000" command-line option tells the tool to use 300 buckets with
 1000 nanoseconds for each bucket.
-Thus, the "ping.log" contains 300 lines, with each line indicating the number
-of samples with latencies within that bucket's range.
+Thus, the "ping.log" contains 300 lines of histogram output,
+with each line indicating the number of samples with latencies
+within that bucket's range.
 For example, in the above test run, the 24th histogram line
 is:
 ````
 337551
 ````
-This means that of the 500,000 round-trip measurements, 337,551 were between 24.0 and 24.999 microseconds.
+This means that of the 500,000 round-trip measurements,
+337,551 were between 24.0 and 24.999 microseconds.
 
 I imported the 300 lines into Excel and created the following chart:
 ![latency chart 1](lat_test1.png)
@@ -251,8 +253,9 @@ I imported the 300 lines into Excel and created the following chart:
 Let's change the Y axis to logarithmic to reveal the latency outliers:
 ![latency chart 1 logarithmic](lat_test1_log.png)
 Remember that a logarithmic scale greatly exaggerates small values.
-For example, the spike at bucket 113 only has a value of 6, meaning that only 6 of 500,000 round trips had
-latency between 112,000 and 113,000 nanoseconds.
+For example, the spike at bucket 113 only has a value of 6,
+meaning that only 6 of the 500,000 round trips had
+latency between 112,000 and 112,999 nanoseconds.
 
 
 ### ONLOAD DRIVER
@@ -455,5 +458,7 @@ which tells the tool to add the configuration option:
 ````
 This lowers the latency by eliminating the kernel scheduler wakeup overhead.
 It also consumes 100% of the CPU that it is running on.
+(When using Onload, configuring Onload for busy looping is preferred over
+configuring UM for "file_descriptor_management_behavior busy_wait".)
 
 Thus, the um_lat_pong tool consumes 100% of one CPU.
