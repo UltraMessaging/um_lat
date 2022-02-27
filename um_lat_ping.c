@@ -92,9 +92,9 @@ void help() {
       "  -m msg_len : message length [%d]\n"
       "  -n num_msgs : number of messages to send [%d]\n"
       "  -p persist_mode : '' (empty)=streaming, 'r'=RPP, 's'=SPP [%s]\n"
-      "  -R rcv_thread : '' (empty)=main context, 'c'=separate context, 'x'=XSP [%s]\n"
+      "  -R rcv_thread : '' (empty)=main context, 'x'=XSP [%s]\n"
       "  -r rate : messages per second to send [%d]\n"
-      "  -s spin_method : '' (empty)=no spin, 'f'=fd mgt busy, 'p'=proc events [%s]\n"
+      "  -s spin_method : '' (empty)=no spin, 'f'=fd mgt busy [%s]\n"
       "  -w warmup_loops,warmup_rate : messages to send before measurement [%s]\n"
       "  -x xml_config : XML configuration file [%s]\n"
       , o_affinity_src, o_affinity_rcv, o_config, o_generic_src, o_histogram
@@ -182,12 +182,12 @@ void get_my_opts(int argc, char **argv)
     app_name = "um_perf_spp";
   }
 
-  if ((strcmp(o_rcv_thread, "") != 0) && (strcmp(o_rcv_thread, "c") != 0) && (strcmp(o_rcv_thread, "x") != 0)) {
-    usage("Error, -R value must be '', 'c', or 'x'\n");
+  if ((strcmp(o_rcv_thread, "") != 0) && (strcmp(o_rcv_thread, "x") != 0)) {
+    usage("Error, -R value must be '' or 'x'\n");
   }
 
-  if ((strcmp(o_spin_method, "") != 0) && (strcmp(o_spin_method, "f") != 0) && (strcmp(o_spin_method, "p") != 0)) {
-    usage("Error, -s value must be '', 'f', or 'p'\n");
+  if ((strcmp(o_spin_method, "") != 0) && (strcmp(o_spin_method, "f") != 0)) {
+    usage("Error, -s value must be '' or 'f'\n");
   }
 
   /* Parse the warmup option: "warmup_loops,warmup_rate". */

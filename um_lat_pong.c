@@ -72,8 +72,8 @@ void help() {
       "  -E : exit on EOS [%d]\n"
       "  -g : generic source [%d]\n"
       "  -p persist_mode : '' (empty)=streaming, 'r'=RPP, 's'=SPP [%s]\n"
-      "  -R rcv_thread : '' (empty)=main context, 'c'=separate context, 'x'=XSP [%s]\n"
-      "  -s spin_method : '' (empty)=no spin, 'f'=fd mgt busy, 'p'=proc events [%s]\n"
+      "  -R rcv_thread : '' (empty)=main context, 'x'=XSP [%s]\n"
+      "  -s spin_method : '' (empty)=no spin, 'f'=fd mgt busy [%s]\n"
       "  -x xml_config : configuration file [%s]\n"
       , o_affinity_rcv, o_config, o_exit_on_eos, o_generic_src, o_persist_mode
       , o_rcv_thread, o_spin_method, o_xml_config
@@ -128,12 +128,15 @@ void get_my_opts(int argc, char **argv)
     app_name = "um_perf_rpp";
   }
 
-  if ((strcmp(o_rcv_thread, "") != 0) && (strcmp(o_rcv_thread, "c") != 0) && (strcmp(o_rcv_thread, "x") != 0)) {
-    usage("Error, -R value must be '', 'c', or 'x'\n");
+  if ((strcmp(o_rcv_thread, "") != 0) && (strcmp(o_rcv_thread, "x") != 0)) {
+    usage("Error, -R value must be '' or 'x'\n");
+  }
+  if ((strcmp(o_rcv_thread, "c") == 0)) {
+    usage("Error, c\n");
   }
 
-  if ((strcmp(o_spin_method, "") != 0) && (strcmp(o_spin_method, "f") != 0) && (strcmp(o_spin_method, "p") != 0)) {
-    usage("Error, -s value must be '', 'f', or 'p'\n");
+  if ((strcmp(o_spin_method, "") != 0) && (strcmp(o_spin_method, "f") != 0)) {
+    usage("Error, -s value must be '' or 'f'\n");
   }
 
   if (strlen(o_xml_config) > 0) {
