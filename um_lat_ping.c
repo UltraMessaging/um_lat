@@ -160,11 +160,11 @@ void get_my_opts(int argc, char **argv)
 
   char *hist_ns_per_bucket_str = CPRT_STRTOK(NULL, ",", &strtok_context);
   ASSRT(hist_ns_per_bucket_str != NULL);
-
   CPRT_ATOI(hist_ns_per_bucket_str, hist_ns_per_bucket);
 
   ASSRT(CPRT_STRTOK(NULL, ",", &strtok_context) == NULL);
   free(work_str);
+  /* It doesn't make sense to not use histogram with a latency tool. */
   ASSRT(hist_num_buckets > 0);
   ASSRT(hist_ns_per_bucket > 0);
 

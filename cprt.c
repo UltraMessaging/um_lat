@@ -116,6 +116,39 @@ void cprt_set_affinity(uint64_t in_mask)
 }  /* cprt_set_affinity */
 
 
+/* Return 0 on success, -1 on error (sets errno). */
+int cprt_try_affinity(uint64_t in_mask)
+{
+#if defined(_WIN32)
+  DWORD_PTR rc;
+  rc = SetThreadAffinityMask(GetCurrentThread(), in_mask);
+  if (rc == 0) {
+    errno = GetLastError();
+    return -1;
+  }
+
+#elif defined(__linux__)
+  cpu_set_t cpuset;
+  int i;
+  uint64_t bit = 1;
+  CPU_ZERO(&cpuset);
+  for (i = 0; i < 64; i++) {
+    if ((in_mask & bit) == bit) {
+      CPU_SET(i, &cpuset);
+    }
+    bit = bit << 1;
+  }
+  errno = pthread_setaffinity_np(pthread_self(), sizeof(cpuset), &cpuset);
+  if (errno != 0) {
+    return -1;
+  }
+
+#else /* Non-Linux Unix. */
+#endif
+  return 0;
+}  /* cprt_try_affinity */
+
+
 #if defined(_WIN32)
 /*******************************************************************************
  * Copyright (c) 2012-2017, Kim Grasman <kim.grasman@gmail.com>

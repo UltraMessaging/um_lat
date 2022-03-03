@@ -365,6 +365,7 @@ extern "C" {
 /* externals in cprt.c. */
 char *cprt_strerror(int errnum, char *buffer, size_t buf_sz);
 void cprt_set_affinity(uint64_t in_mask);
+int cprt_try_affinity(uint64_t in_mask);
 void cprt_inittime();
 
 #if defined(_WIN32)

@@ -24,3 +24,6 @@ if [ $? -ne 0 ]; then echo error in um_lat_pong.c; exit 1; fi
 
 javac $CP lbmpong.java
 if [ $? -ne 0 ]; then echo error in lbmpong.java; exit 1; fi
+
+javac $CP UmLatPing.java
+if [ $? -ne 0 ]; then echo error in UmLatPing.java; exit 1; fi
