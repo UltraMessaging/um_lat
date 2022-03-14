@@ -64,8 +64,6 @@ extern "C" {
 #define FLAGS_GENERIC_SRC  0x04
 
 struct perf_msg_s {
-  uint32_t flags;
-  uint32_t msg_num;
   struct timespec send_ts;
 };
 typedef struct perf_msg_s perf_msg_t;

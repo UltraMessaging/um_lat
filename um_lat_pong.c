@@ -30,28 +30,44 @@
 #include "lbm/lbm.h"
 #include "um_lat.h"
 
+enum persist_mode_enum { STREAMING, RPP, SPP };
+enum rcv_thread_enum { MAIN_CTX, XSP };
+enum spin_method_enum { NO_SPIN, FD_MGT_BUSY };
+
 /* Forward declarations. */
 lbm_xsp_t *my_xsp_mapper_callback(lbm_context_t *ctx, lbm_new_transport_info_t *transp_info, void *clientd);
-int rcv_callback(lbm_rcv_t *rcv, lbm_msg_t *msg, void *clientd);
+int my_rcv_cb(lbm_rcv_t *rcv, lbm_msg_t *msg, void *clientd);
 
 /* Command-line options and their defaults. String defaults are set
  * in "get_my_opts()". */
-static int o_affinity_rcv = -1;
-static char *o_config = NULL;
-static int o_exit_on_eos = 0;  /* -E */
-static int o_generic_src = 0;
-static char *o_persist_mode = NULL;
-static char *o_rcv_thread = NULL; /* -R */
-static char *o_spin_method = NULL;
-static char *o_xml_config = NULL;
+int o_affinity_rcv = -1;
+char *o_config = NULL;
+int o_exit_on_eos = 0;  /* -E */
+int o_generic_src = 0;
+char *o_persist_mode = NULL;
+char *o_rcv_thread = NULL; /* -R */
+char *o_spin_method = NULL;
+char *o_xml_config = NULL;
 
 /* Parameters parsed out from command-line options. */
-char *app_name;
+char *app_name = "um_perf";
+enum persist_mode_enum persist_mode = STREAMING;
+enum rcv_thread_enum rcv_thread = MAIN_CTX;
+enum spin_method_enum spin_method = NO_SPIN;
 
-/* Globals. The code depends on the loader initializing them to all zeros. */
-int registration_complete;
-int cur_flight_size;
-int max_flight_size;
+/* Globals. */
+int registration_complete = 0;
+int cur_flight_size = 0;
+int max_flight_size = 0;
+
+
+void assrt(int assertion, char *err_message)
+{
+  if (! assertion) {
+    fprintf(stderr, "um_lat_ping: Error, %s\nUse '-h' for help\n", err_message);
+    exit(1);
+  }
+}  /* assrt */
 
 
 char usage_str[] = "Usage: um_lat_pong [-h] [-a affinity_rcv] [-c config] [-E] [-g] [-p persist_mode] [-R rcv_thread] [-s spin_method] [-x xml_config]";
@@ -64,20 +80,18 @@ void usage(char *msg) {
 }
 
 void help() {
+  fprintf(stderr, "Usage: um_lat_pong [-h] [-a affinity_rcv] [-c config] [-E] [-g] [-p persist_mode] [-R rcv_thread] [-s spin_method] [-x xml_config]\n");
   fprintf(stderr, "%s\n", usage_str);
   fprintf(stderr, "where:\n"
       "  -h : print help\n"
-      "  -a affinity_rcv : CPU number (0..N-1) for receive thread (-1=none) [%d]\n"
-      "  -c config : configuration file; can be repeated [%s]\n"
-      "  -E : exit on EOS [%d]\n"
-      "  -g : generic source [%d]\n"
-      "  -p persist_mode : '' (empty)=streaming, 'r'=RPP, 's'=SPP [%s]\n"
-      "  -R rcv_thread : '' (empty)=main context, 'x'=XSP [%s]\n"
-      "  -s spin_method : '' (empty)=no spin, 'f'=fd mgt busy [%s]\n"
-      "  -x xml_config : configuration file [%s]\n"
-      , o_affinity_rcv, o_config, o_exit_on_eos, o_generic_src, o_persist_mode
-      , o_rcv_thread, o_spin_method, o_xml_config
-  );
+      "  -a affinity_rcv : CPU number (0..N-1) for receive thread (-1=none)\n"
+      "  -c config : configuration file; can be repeated\n"
+      "  -E : exit on EOS\n"
+      "  -g : generic source\n"
+      "  -p persist_mode : '' (empty)=streaming, 'r'=RPP, 's'=SPP\n"
+      "  -R rcv_thread : '' (empty)=main context, 'x'=XSP\n"
+      "  -s spin_method : '' (empty)=no spin, 'f'=fd mgt busy\n"
+      "  -x xml_config : configuration file\n");
   CPRT_NET_CLEANUP;
   exit(0);
 }
@@ -100,48 +114,63 @@ void get_my_opts(int argc, char **argv)
       case 'h': help(); break;
       case 'a': CPRT_ATOI(optarg, o_affinity_rcv); break;
       /* Allow -c to be repeated, loading each config file in succession. */
-      case 'c': free(o_config);
-                o_config = CPRT_STRDUP(optarg);
-                E(lbm_config(o_config));  /* Allow multiple calls. */
-                break;
+      case 'c':
+        free(o_config);
+        o_config = CPRT_STRDUP(optarg);
+        E(lbm_config(o_config));  /* Allow multiple calls. */
+        break;
       case 'E': o_exit_on_eos = 1; break;
       case 'g': o_generic_src = 1; break;
-      case 'p': free(o_persist_mode); o_persist_mode = CPRT_STRDUP(optarg); break;
-      case 'R': free(o_rcv_thread); o_rcv_thread = CPRT_STRDUP(optarg); break;
-      case 's': free(o_spin_method); o_spin_method = CPRT_STRDUP(optarg); break;
-      case 'x': free(o_xml_config); o_xml_config = CPRT_STRDUP(optarg); break;
+      case 'p':
+        free(o_persist_mode);
+        o_persist_mode = CPRT_STRDUP(optarg);
+        if (strcasecmp(o_persist_mode, "") == 0) {
+          app_name = "um_perf";
+          persist_mode = STREAMING;
+        } else if (strcasecmp(o_persist_mode, "r") == 0) {
+          app_name = "um_perf_rpp";
+          persist_mode = RPP;
+        } else if (strcasecmp(o_persist_mode, "s") == 0) {
+          app_name = "um_perf_spp";
+          persist_mode = SPP;
+        } else {
+          assrt(0, "-p value must be '', 'r', or 's'");
+        }
+      case 'R':
+        free(o_rcv_thread);
+        o_rcv_thread = CPRT_STRDUP(optarg);
+        if (strcasecmp(o_rcv_thread, "") == 0) {
+          rcv_thread = MAIN_CTX;
+        } else if (strcasecmp(o_rcv_thread, "x") == 0) {
+          rcv_thread = XSP;
+        } else {
+          assrt(0, "Error, -R value must be '' or 'x'\n");
+        }
+        break;
+      case 's':
+        free(o_spin_method);
+        o_spin_method = CPRT_STRDUP(optarg);
+        if (strcasecmp(o_spin_method, "") == 0) {
+          spin_method = NO_SPIN;
+        } else if (strcasecmp(o_spin_method, "f") == 0) {
+          spin_method = FD_MGT_BUSY;
+        } else {
+          assrt(0, "Error, -s value must be '' or 'f'\n");
+        }
+        break;
+      case 'x':
+        free(o_xml_config);
+        o_xml_config = CPRT_STRDUP(optarg);
+        /* Don't read it now since app_name might not be set yet. */
+        break;
       default: usage(NULL);
     }  /* switch opt */
   }  /* while getopt */
 
-  if ((strcmp(o_persist_mode, "") != 0) && (strcmp(o_persist_mode, "r") != 0) && (strcmp(o_persist_mode, "s") != 0)) {
-    usage("Error, -p value must be '', 'r', or 's'\n");
-  }
-  if (o_persist_mode[0] == '\0') {
-    app_name = "um_perf";
-  }
-  else if (o_persist_mode[0] == 's') {
-    app_name = "um_perf_spp";
-  }
-  else {
-    ASSRT(o_persist_mode[0] == 'r');
-    app_name = "um_perf_rpp";
-  }
+  if (optind != argc) { assrt(0, "Unexpected positional parameter(s)"); }
 
-  if ((strcmp(o_rcv_thread, "") != 0) && (strcmp(o_rcv_thread, "x") != 0)) {
-    usage("Error, -R value must be '' or 'x'\n");
-  }
-  if ((strcmp(o_rcv_thread, "c") == 0)) {
-    usage("Error, c\n");
-  }
-
-  if ((strcmp(o_spin_method, "") != 0) && (strcmp(o_spin_method, "f") != 0)) {
-    usage("Error, -s value must be '' or 'f'\n");
-  }
-
+  /* Waited to read xml config (if any) so that app_name is set up right. */
   if (strlen(o_xml_config) > 0) {
-    /* Unlike lbm_config(), you can't load more than one XML file.
-     * If user supplied -x more than once, only load last one. */
     E(lbm_config_xml_file(o_xml_config, app_name));
   }
 
@@ -177,7 +206,15 @@ int handle_src_event(int event, void *extra_data, void *client_data)
     case LBM_SRC_EVENT_FLIGHT_SIZE_NOTIFICATION:
       break;
     case LBM_SRC_EVENT_UME_MESSAGE_RECLAIMED_EX:
+    {
+      lbm_src_event_ume_ack_ex_info_t *ack_info = (lbm_src_event_ume_ack_ex_info_t *)extra_data;
+      if (ack_info->flags & LBM_SRC_EVENT_UME_MESSAGE_RECLAIMED_EX_FLAG_FORCED) {
+        fprintf(stderr, "Forced reclaim (should not happen), sqn=%u\n", ack_info->sequence_number);
+        __sync_fetch_and_sub(&cur_flight_size, 1);
+        ASSRT(cur_flight_size >= 0);  /* Die if negative. */
+      }
       break;
+    }
     case LBM_SRC_EVENT_UME_DEREGISTRATION_SUCCESS_EX:
       break;
     case LBM_SRC_EVENT_UME_DEREGISTRATION_COMPLETE_EX:
@@ -208,20 +245,7 @@ int src_event_cb(lbm_src_t *src, int event, void *extra_data, void *client_data)
 }  /* src_event_cb */
 
 
-/* UM callback for force reclaiom events. */
-int force_reclaim_cb(const char *topic_str, lbm_uint_t seqnum, void *clientd)
-{
-  fprintf(stderr, "force_reclaim_cb: topic_str='%s', seqnum=%d, cur_flight_size=%d, max_flight_size=%d,\n",
-      topic_str, seqnum, cur_flight_size, max_flight_size);
-
-  __sync_fetch_and_sub(&cur_flight_size, 1);  /* Adjust flight size for reclaim. */
-  ASSRT(cur_flight_size >= 0);  /* Die if negative. */
-
-  return 0;
-}  /* force_reclaim_cb */
-
-
-lbm_context_t *ctx = NULL;
+lbm_context_t *my_ctx = NULL;
 lbm_xsp_t *my_xsp = NULL;
 
 void create_context()
@@ -231,10 +255,10 @@ void create_context()
   E(lbm_context_attr_create(&ctx_attr));
 
   lbm_transport_mapping_func_t mapping_func;
-  if (o_rcv_thread[0] == 'x') {
+  if (rcv_thread == XSP) {
     /* Set all receive transport sessions to my_xsp. */
     mapping_func.mapping_func = my_xsp_mapper_callback;
-    mapping_func.clientd = &my_xsp;
+    mapping_func.clientd = NULL;
     E(lbm_context_attr_setopt(ctx_attr,
         "transport_mapping_function", &mapping_func, sizeof(mapping_func)));
   }
@@ -249,10 +273,10 @@ void create_context()
   }
 
   /* Context thread inherits the initial CPU set of the process. */
-  E(lbm_context_create(&ctx, ctx_attr, NULL, NULL));
+  E(lbm_context_create(&my_ctx, ctx_attr, NULL, NULL));
   E(lbm_context_attr_delete(ctx_attr));
 
-  if (o_rcv_thread[0] == 'x') {
+  if (rcv_thread == XSP) {
     /* Xsp in use; create a fresh context attr (can't re-use parent's). */
     E(lbm_context_attr_create(&ctx_attr));
     /* Main context will host receivers; set desired options. */
@@ -263,7 +287,7 @@ void create_context()
           "file_descriptor_management_behavior", "busy_wait"));
     }
 
-    E(lbm_xsp_create(&my_xsp, ctx, ctx_attr, NULL));
+    E(lbm_xsp_create(&my_xsp, my_ctx, ctx_attr, NULL));
     E(lbm_context_attr_delete(ctx_attr));
   }
 
@@ -282,15 +306,6 @@ void create_source(lbm_context_t *ctx)
   /* Set some options in code. */
   E(lbm_src_topic_attr_create(&src_attr));
 
-  E(lbm_src_topic_attr_str_setopt(src_attr, "ume_session_id", "0x7"));
-
-  /* Get notified for forced reclaims (should not happen). */
-  lbm_ume_src_force_reclaim_func_t force_reclaim_cb_conf;
-  force_reclaim_cb_conf.func = force_reclaim_cb;
-  force_reclaim_cb_conf.clientd = NULL;
-  E(lbm_src_topic_attr_setopt(src_attr, "ume_force_reclaim_function",
-      &force_reclaim_cb_conf, sizeof(force_reclaim_cb_conf)));
-
   /* The "pong" program sends messages to "topic2". */
   E(lbm_src_topic_alloc(&topic_obj, ctx, "topic2", src_attr));
   if (o_generic_src) {
@@ -307,30 +322,28 @@ void create_source(lbm_context_t *ctx)
 }  /* create_source */
 
 
-lbm_rcv_t *rcv;
+lbm_rcv_t *my_rcv;
 
 void create_receiver(lbm_context_t *ctx)
 {
   lbm_rcv_topic_attr_t *rcv_attr;
   E(lbm_rcv_topic_attr_create(&rcv_attr));
 
-  /* Receive reflected messages from pong. */
+  /* Receive messages from ping. */
   lbm_topic_t *topic_obj;
-  E(lbm_rcv_topic_lookup(&topic_obj, ctx, "topic2", rcv_attr));
-  E(lbm_rcv_create(&rcv, ctx, topic_obj, rcv_callback, NULL, NULL));
+  E(lbm_rcv_topic_lookup(&topic_obj, my_ctx, "topic1", rcv_attr));
+  E(lbm_rcv_create(&my_rcv, my_ctx, topic_obj, my_rcv_cb, NULL, NULL));
 }  /* create_receiver */
 
 
-/* The ssrc_exinfo global is initialized to zeros. */
-static lbm_ssrc_send_ex_info_t ssrc_exinfo;
-/* UM callback for receiver events, including received messages. */
-int rcv_callback(lbm_rcv_t *rcv, lbm_msg_t *msg, void *clientd)
-{
-  static uint64_t num_rcv_msgs;
-  static uint64_t num_rx_msgs;
-  static uint64_t num_unrec_loss;
-  static uint64_t num_sent;
+uint64_t num_rcv_msgs;
+uint64_t num_rx_msgs;
+uint64_t num_unrec_loss;
+uint64_t num_sent;
 
+/* UM callback for receiver events, including received messages. */
+int my_rcv_cb(lbm_rcv_t *rcv, lbm_msg_t *msg, void *clientd)
+{
   switch (msg->type) {
   case LBM_MSG_BOS:
     /* Assume receive thread is calling this; pin the time-critical thread
@@ -393,7 +406,7 @@ int rcv_callback(lbm_rcv_t *rcv, lbm_msg_t *msg, void *clientd)
     else {  /* Smart Src API. */
       memcpy(ssrc_buff, msg->data, msg->len);
       /* Send message and get next buffer from shared memory. */
-      int e = lbm_ssrc_send_ex(ssrc, ssrc_buff, msg->len, 0, &ssrc_exinfo);
+      int e = lbm_ssrc_send_ex(ssrc, ssrc_buff, msg->len, 0, NULL);
       if (e == -1) {
         printf("num_sent=%"PRIu64", max_flight_size=%d\n", num_sent, max_flight_size);
       }
@@ -413,37 +426,44 @@ int rcv_callback(lbm_rcv_t *rcv, lbm_msg_t *msg, void *clientd)
   }  /* switch msg->type */
 
   return 0;
-}  /* rcv_callback */
+}  /* my_rcv_cb */
 
 
 lbm_xsp_t *my_xsp_mapper_callback(lbm_context_t *ctx, lbm_new_transport_info_t *transp_info, void *clientd)
 {
-  lbm_xsp_t **my_xsp = (lbm_xsp_t **)clientd;
-  return *my_xsp;
+  return my_xsp;
 }  /* my_xsp_mapper_callback */
+
+
+int my_logger_cb(int level, const char *message, void *clientd)
+{
+  /* A real application should include a high-precision time stamp and
+   * be thread safe. */
+  printf("LOG Level %d: %s\n", level, message);
+  return 0;
+}  // my_logger_cb
 
 
 int main(int argc, char **argv)
 {
-  lbm_rcv_topic_attr_t *rcv_attr;
-  lbm_topic_t *topic_obj;
-  lbm_rcv_t *rcv_obj;
   CPRT_NET_START;
+
+  /* Set up callback for UM log messages. */
+  E(lbm_log(my_logger_cb, NULL));
 
   get_my_opts(argc, argv);
 
   printf("o_affinity_rcv=%d, o_config=%s, o_exit_on_eos=%d, o_generic_src=%d, o_persist_mode='%s', o_rcv_thread='%s', o_spin_method='%s', o_xml_config=%s, \n",
-      o_affinity_rcv, o_config, o_exit_on_eos, o_generic_src, o_persist_mode, o_rcv_thread, o_spin_method, o_xml_config);
+      o_affinity_rcv, o_config, o_exit_on_eos, o_generic_src, o_persist_mode,
+      o_rcv_thread, o_spin_method, o_xml_config);
+  printf("app_name='%s', persist_mode=%d, spin_method=%d, \n",
+      app_name, persist_mode, spin_method);
 
   create_context();
 
-  /* Set some options in code. */
-  E(lbm_rcv_topic_attr_create(&rcv_attr));
+  create_source(my_ctx);
 
-  E(lbm_rcv_topic_lookup(&topic_obj, ctx, "topic1", rcv_attr));
-  E(lbm_rcv_create(&rcv_obj, ctx, topic_obj, rcv_callback, NULL, NULL));
-
-  create_source(ctx);
+  create_receiver(my_ctx);
 
   /* The subscriber must be "kill"ed externally. */
   CPRT_SLEEP_SEC(2000000000);  /* 23+ centuries. */

@@ -1,4 +1,4 @@
-/* UmLatPing.java - performance measurement tool. */
+/* UmLatPong.java - performance measurement tool. */
 /*
   Copyright (c) 2021-2022 Informatica Corporation
   Permission is granted to licensees to use or alter this software for any
@@ -27,35 +27,29 @@ import com.latencybusters.lbm.*;
 
 // The application class supplies the onReceive, onSourceEvent,
 // onTransportMapping, and LBMLog callbacks directly.
-class UmLatPing implements LBMSourceEventCallback, LBMReceiverCallback, LBMTransportMappingCallback, LBMLogging {
+class UmLatPong implements LBMSourceEventCallback, LBMReceiverCallback, LBMTransportMappingCallback, LBMLogging {
   enum PersistMode { STREAMING, RPP, SPP };
   enum RcvThread { MAIN_CTX, XSP };
   enum SpinMethod { NO_SPIN, FD_MGT_BUSY };
 
+  // Constants
+  final int maxMsgLength = 1472;
+
   // Command-line options.
   String optConfig = "";
+  boolean optExitOnEos = false;  // -E
   boolean optGenericSrc = false;
-  String optHistogram = "0,0";  // -H
-  int optLingerMs = 1000;
-  int optMsgLen = 0;
-  int optNumMsgs = 0;
   String optPersistMode = "";
   String optRcvThread = "";  // -R
-  int optRate = 0;
   boolean optSequential = false;  // -S
   String optSpinMethod = "";
-  String optWarmup = "0,0";
   String optXmlConfig = "";
 
   // Parameters parsed out from command-line options.
   String appName = "um_perf";
-  int histNumBuckets = 0;
-  int histNsPerBucket = 0;
   PersistMode persistMode = PersistMode.STREAMING;
   RcvThread rcvThread = RcvThread.MAIN_CTX;
   SpinMethod spinMethod = SpinMethod.NO_SPIN;
-  int warmupLoops = 0;
-  int warmupRate = 0;
 
   // Globals.
   LBM lbm = null;
@@ -67,21 +61,20 @@ class UmLatPing implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
 
   public static void main(String[] args) throws Exception {
     // The body of the program is in the "run" method.
-    UmLatPing application = new UmLatPing();
+    UmLatPong application = new UmLatPong();
     application.run(args);
   }  // main
 
 
   public void LBMLog(int logLevel, String message) {
-    // A real application should include a high-precision time stamp and
-    // be thread safe.
+    // A real application should include a high-precision time stamp.
     System.out.println("AppLogger: logLevel=" + logLevel + ", message=" + message);
   }  // LBMLog
 
 
   private void assrt(boolean assertion, String errMessage) {
     if (! assertion) {
-      System.err.println("UmLatPing: Error, " + errMessage + "\nUse '-h' for help");
+      System.err.println("UmLatPong: Error, " + errMessage + "\nUse '-h' for help");
       System.exit(1);
     }
   }  // assrt
@@ -98,21 +91,15 @@ class UmLatPing implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
 
 
   private void help() {
-    System.out.println("Usage: UmLatPing [-h] [-c config] [-g] -H hist_num_buckets,hist_ns_per_bucket [-l linger_ms] -m msg_len -n num_msgs [-p persist_mode] [-R rcv_thread] -r rate [-S] [-s spin_method] [-w warmup_loops,warmup_rate] [-x xml_config]\n");
+    System.out.println("Usage: UmLatPong [-h] [-c config] [-g] [-p persist_mode] [-R rcv_thread] [-S] [-s spin_method] [-x xml_config]\n");
     System.out.println("Where (those marked with 'R' are required):\n" +
       "  -h : print help\n" +
       "  -c config : configuration file; can be repeated\n" +
       "  -g : generic source\n"  +
-      "R -H hist_num_buckets,hist_ns_per_bucket : send time histogram\n" +
-      "  -l linger_ms : linger time before source delete\n" +
-      "R -m msg_len : message length\n" +
-      "R -n num_msgs : number of messages to send\n" +
       "  -p persist_mode : '' (empty)=streaming, 'r'=RPP, 's'=SPP\n" +
       "  -R rcv_thread : '' (empty)=main context, 'x'=XSP\n" +
-      "R -r rate : messages per second to send\n" +
       "  -S : sequential context and XSP (if enabled with -R)\n" +
       "  -s spin_method : '' (empty)=no spin, 'f'=fd mgt busy\n" +
-      "  -w warmup_loops,warmup_rate : messages to send before measurement\n" +
       "  -x xml_config : XML configuration file\n");
     System.exit(0);
   }  // help
@@ -135,16 +122,6 @@ class UmLatPing implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
             LBM.setConfiguration(optConfig);
             break;
           case "-g": optGenericSrc = true; break;
-          case "-H":
-            optHistogram = optArg(args, argNum ++);
-            String[] values = optHistogram.split(",");
-            assrt(values.length == 2, "-H value '" + optHistogram + "' must be 'hist_num_buckets,hist_ns_per_bucket'");
-            histNumBuckets = Integer.parseInt(values[0]);
-            histNsPerBucket = Integer.parseInt(values[1]);
-            break;
-          case "-l": optLingerMs = Integer.parseInt(optArg(args, argNum ++)); break;
-          case "-m": optMsgLen = Integer.parseInt(optArg(args, argNum ++)); break;
-          case "-n": optNumMsgs = Integer.parseInt(optArg(args, argNum ++)); break;
           case "-p":
             optPersistMode = optArg(args, argNum ++);
             if (optPersistMode.equalsIgnoreCase("")) {
@@ -170,7 +147,6 @@ class UmLatPing implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
               assrt(false, "-R value must be '' or 'x'");
             }
             break;
-          case "-r": optRate = Integer.parseInt(optArg(args, argNum ++)); break;
           case "-S": optSequential = true; break;
           case "-s":
             optSpinMethod = optArg(args, argNum ++);
@@ -180,16 +156,6 @@ class UmLatPing implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
               spinMethod = SpinMethod.FD_MGT_BUSY;
             } else {
               assrt(false, "-s value must be '' or 'f'");
-            }
-            break;
-          case "-w":
-            optWarmup = optArg(args, argNum ++);
-            values = optWarmup.split(",");
-            assrt(values.length == 2, "-w value '" + optWarmup + "' must be 'warmup_loops,warmup_rate'");
-            warmupLoops = Integer.parseInt(values[0]);
-            warmupRate = Integer.parseInt(values[1]);
-            if (warmupLoops > 0) {
-              assrt(warmupRate > 0, "warmup_rate must be > 0");
             }
             break;
           case "-x":
@@ -207,99 +173,11 @@ class UmLatPing implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
     // This program doesn't have positional parameters.
     assrt(argNum == args.length, "Unexpected parameter");
 
-    // Make sure required options are supplied.
-    assrt(optRate > 0, "Must supply '-r rate'");
-    assrt(optNumMsgs > 0, "Must supply '-n num_msgs'");
-    assrt(optMsgLen > 0, "Must supply '-m msg_len'");
-    assrt(optHistogram.length() > 0, "Must supply '-H hist_num_buckets,hist_ns_per_bucket'");
-    assrt(histNumBuckets > 0, "-H value hist_num_buckets must be > 0");
-    assrt(histNsPerBucket > 0, "-H value hist_ns_per_bucket must be > 0");
-
     // Waited to read xml config (if any) so that app_name is set up right.
     if (optXmlConfig.length() > 0) {
       LBM.setConfigurationXml(optXmlConfig, appName);
     }
   }  // getMyOpts
-
-
-  long histBuckets[];
-  long histMinSample = 999999999;
-  long histMaxSample = 0;
-  int histOverflows = 0;
-  int histNumSamples = 0;
-  long histSampleSum = 0;
-
-  private void histInit() {
-    histMinSample = 999999999;
-    histMaxSample = 0;
-    histOverflows = 0;
-    histNumSamples = 0;
-    histSampleSum = 0;
-
-    int i;
-    for (i = 0; i < histNumBuckets; i++) {
-      histBuckets[i] = 0;
-    }
-  }  // histInit
-
-  private void histCreate() {
-    histBuckets = new long[histNumBuckets];
-
-    histInit();
-  }  // histCreate
-
-  private void histInput(long inSample) {
-    histNumSamples++;
-    histSampleSum += inSample;
-
-    if (inSample > histMaxSample) {
-      histMaxSample = inSample;
-    }
-    if (inSample < histMinSample) {
-      histMinSample = inSample;
-    }
-
-    int bucket = (int)(inSample / histNsPerBucket);
-    if (bucket >= histNumBuckets) {
-      histOverflows++;
-    }
-    else {
-      histBuckets[bucket]++;
-    }
-  }  // histInput
-
-  // Get the latency (in ns) which "percentile" percent of samples are below.
-  // Returns -1 if not calculable (i.e. too many overflows).
-  private int histPercentile(double percentile) {
-    int i;
-    int neededSamples = (int)((double)histNumSamples * (double)percentile / 100.0);
-    int foundSamples = 0;
-
-    for (i = 0; i < histNumBuckets; i++) {
-      foundSamples += histBuckets[i];
-      if (foundSamples > neededSamples) {
-        return (i+1) * histNsPerBucket;
-      }
-    }
-
-    return -1;
-  }  // histPercentile
-
-  private void histPrint() {
-    int i;
-    for (i = 0; i < histNumBuckets; i++) {
-      System.out.println(histBuckets[i]);
-    }
-    System.out.println("optHistogram=" + optHistogram + ", histOverflows=" + histOverflows +
-        ", histMinSample=" + histMinSample + ", histMaxSample=" + histMaxSample + ",");
-    long averageSample = histSampleSum / histNumSamples;
-    System.out.println("histNuMSamples=" + histNumSamples + ", averageSample=" + averageSample + ",");
-
-    System.out.println("Percentiles: 90=" + histPercentile(90.0) + ", 99=" + histPercentile(99.0) +
-        ", 99.9=" + histPercentile(99.9) + ", 99.99=" + histPercentile(99.99) +
-        ", 99.999=" + histPercentile(99.999));
-    System.out.flush();  // typically not needed, but not guaranteed.
-  }  // histPrint
 
 
   public int onSourceEvent(Object arg, LBMSourceEvent sourceEvent) {
@@ -366,7 +244,7 @@ class UmLatPing implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
     }
     else {  // rcvThread not XSP. */
       // Main context will host receivers; set desired options.
-      ctxAttr.setProperty("ume_session_id", "0x6");  // Ping uses session ID 6.
+      ctxAttr.setProperty("ume_session_id", "0x7");  // Pong uses session ID 7.
 
       if (spinMethod == SpinMethod.FD_MGT_BUSY) {
         ctxAttr.setProperty("file_descriptor_management_behavior", "busy_wait");
@@ -384,7 +262,7 @@ class UmLatPing implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
       // Xsp in use; create a fresh context attr (can't re-use parent's).
       LBMContextAttributes xspCtxAttr = new LBMContextAttributes();
       // Main context will host receivers; set desired options.
-      xspCtxAttr.setProperty("ume_session_id", "0x6");  // Ping uses session ID 6.
+      xspCtxAttr.setProperty("ume_session_id", "0x7");  // Pong uses session ID 7.
 
       if (spinMethod == SpinMethod.FD_MGT_BUSY) {
         xspCtxAttr.setProperty("file_descriptor_management_behavior", "busy_wait");
@@ -402,19 +280,21 @@ class UmLatPing implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
   LBMSource mySrc = null;
   LBMSSource mySSrc = null;
   ByteBuffer mySSrcBuffer = null;
+  LBMSSourceSendExInfo mySSrcExInfo = null;
 
   private void createSource(LBMContext ctx) throws Exception {
     LBMSourceAttributes srcAttr = new LBMSourceAttributes();
-    // The "ping" program sends messages to "topic1".
-    LBMTopic srcTopic = ctx.allocTopic("topic1", srcAttr);;
+    // The "pong" program sends messages to "topic2".
+    LBMTopic srcTopic = ctx.allocTopic("topic2", srcAttr);;
     if (optGenericSrc) {
       // Set up callback "onSourceEvent()" for UM to deliver source events.
       mySrc = ctx.createSource(srcTopic, this, null);
-      mySSrcBuffer = ByteBuffer.allocateDirect(optMsgLen);
     }
     else {  // Smart Src API.
       mySSrc = new LBMSSource(myCtx, srcTopic);
+      // Going to use a user-supplied buffer.
       mySSrcBuffer = mySSrc.buffGet();
+      mySSrcExInfo = new LBMSSourceSendExInfo();
     }
   }  // createSource
 
@@ -432,8 +312,8 @@ class UmLatPing implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
 
   private void createReceiver(LBMContext ctx) throws Exception {
     LBMReceiverAttributes rcvAttr = new LBMReceiverAttributes();
-    // The "pong" program sends messages to "topic2", which we receive.
-    LBMTopic rcvTopic = ctx.lookupTopic("topic2", rcvAttr);
+    // The "ping" program sends messages to "topic1", which we receive.
+    LBMTopic rcvTopic = ctx.lookupTopic("topic1", rcvAttr);
     // Set up callback "onReceive()" for UM to deliver messages and other events.
     myRcv = ctx.createReceiver(rcvTopic, this, null);
   }  // createReceiver
@@ -475,16 +355,29 @@ class UmLatPing implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
         break;
 
       case LBM.MSG_DATA:
-        ByteBuffer message = msg.getMessagesBuffer();  // For SMX.
+        int msgLength = (int)msg.dataLength();
+        assrt(msgLength <= maxMsgLength, "Received message length > " + maxMsgLength);
+
+        ByteBuffer message = msg.getMessagesBuffer();  // If SMX.
         if (message == null) {
-          message = msg.dataBuffer();  // For non-SMX.
+          message = msg.dataBuffer();  // Not SMX.
         }
 
         numRcvMsgs++;
 
-        long sentNs = message.getLong();  // Extract timestamp.
-        if (sentNs != 0) {
-          histInput(rcvNs - sentNs);
+        try {
+          if (optGenericSrc) {
+            mySrc.send(message, 0, msgLength, 0);
+          }
+          else {  // Smart Source
+            // User-supplied buffer supplied via exInfo.
+            mySSrcExInfo.setUserSuppliedBuffer(message);
+            mySSrc.send(mySSrcBuffer, 0, msgLength, 0, mySSrcExInfo);
+          }
+        }
+        catch (Exception e) {
+          System.err.println("Error sending: " + e.toString());
+          System.exit(1);
         }
 
         // Keep track of recovered messages.
@@ -511,93 +404,22 @@ class UmLatPing implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
   }  // onTransportMapping
 
 
-  private int sendLoop(int numSends, long sendsPerSec, boolean sendTimestamp) {
-    int msgSendFlags = 0;
-    if (optGenericSrc) {
-      msgSendFlags = LBM.SRC_NONBLOCK;
-    }
-
-    int maxTightSends = 0;
-
-    // Send messages evenly-spaced using busy looping. Based on algorithm:
-    // http://www.geeky-boy.com/catchup/html/
-    long startNs = System.nanoTime();
-    long curNs = startNs;
-    int numSent = 0;
-    do {  // while numSent < numSends
-      long nsSoFar = curNs - startNs;
-      // The +1 is because we want to send, then pause.
-      int shouldHaveSent = (int)((nsSoFar * sendsPerSec) / 1000000000 + 1);
-      if (shouldHaveSent > numSends) {
-        shouldHaveSent = numSends;  // Don't send more than requested.
-      }
-      if ((shouldHaveSent - numSent) > maxTightSends) {
-        maxTightSends = (int)(shouldHaveSent - numSent);
-      }
-
-      // If we are behind where we should be, get caught up.
-      while (numSent < shouldHaveSent) {
-        // Construct message.
-        mySSrcBuffer.position(0);
-        if (sendTimestamp) {
-          mySSrcBuffer.putLong(System.nanoTime());
-        }
-        else {
-          mySSrcBuffer.putLong(0);
-        }
-
-        // Send message.
-        try {
-          if (optGenericSrc) {
-            mySrc.send(mySSrcBuffer, 0, optMsgLen, msgSendFlags);
-          }
-          else {  // Smart Src API.
-            mySSrc.send(mySSrcBuffer, 0, optMsgLen, msgSendFlags, null);
-          }
-        } catch (Exception e) {
-          System.err.println("Error sending: " + e.toString());
-          System.exit(1);
-        }
-
-        int cur = curFlightSize.incrementAndGet();
-        if (cur > maxFlightSize) {
-          maxFlightSize = cur;
-        }
-
-        numSent++;
-      }  // while numSent < shouldHaveSent
-
-      curNs = System.nanoTime();
-    } while (numSent < numSends);
-
-    globalMaxTightSends = maxTightSends;
-
-    return numSent;
-  }  // sendLoop
-
   private void run(String[] args) throws Exception {
     lbm = new LBM();
     // Set up callback "LBMLog()" for UM log messages.
     lbm.setLogger(this);
 
     getMyOpts(args);
-    histCreate();
 
     System.out.println("optConfig=" + optConfig +
-        ", optGenericSrc=" + optGenericSrc + ", optHistogram=" + optHistogram +
-        ", optLingerMs=" + optLingerMs + ", optMsgLen=" + optMsgLen +
-        ", optNumMsgs=" + optNumMsgs + ", optPersistMode=" + optPersistMode +
-        ", optRcvThread=" + optRcvThread + ", optRate=" + optRate +
-        ", optSequential=" + optSequential +
-        ", optSpinMethod=" + optSpinMethod + ", optWarmup=" + optWarmup +
+        ", optGenericSrc=" + optGenericSrc +
+        ", optPersistMode=" + optPersistMode +
+        ", optRcvThread=" + optRcvThread +
+        ", optSequential=" + optSequential + ", optSpinMethod=" + optSpinMethod +
         ", optXmlConfig=" + optXmlConfig + ",");
     System.out.println("appName='" + appName +
-        "', histNumBuckets=" + histNumBuckets +
-        ", histNsPerBucket=" + histNsPerBucket +
         ", persistMode=" + persistMode +
-        ", spinMethod=" + spinMethod +
-        ", warmupLoops=" + warmupLoops +
-        ", warmupRate=" + warmupRate + ",");
+        ", spinMethod=" + spinMethod);
     System.out.flush();  // typically not needed, but not guaranteed.
 
     createContext();
@@ -606,102 +428,11 @@ class UmLatPing implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
 
     createReceiver(myCtx);
 
-    // Ready to send "warmup" messages which should not be accumulated
-    // in the histogram.
-    if (persistMode != PersistMode.STREAMING) {
-      // Wait for registration complete.
-      while (registrationComplete < 1) {
-        Thread.sleep(1000);
-        if (registrationComplete < 1) {
-          System.out.println("Waiting for " + (1 - registrationComplete));
-          System.out.flush();  // typically not needed, but not guaranteed.
-        }
-      }
-
-      // Wait for receiver(s) to register and are ready to receive messages.
-      // There is a proper algorithm for this, but it adds unnecessary
-      // complexity and obscures the perf test algorithms. Sleep for simplicity.
-      Thread.sleep(5000);
-    }
-    else {  // Streaming.
-      if (warmupLoops > 0) {
-        // Without persistence, need to initiate data on src.
-        // NOTE: this message will NOT be received (head loss)
-        // because topic resolution hasn't completed.
-        sendLoop(1, 999999999, false);
-        warmupLoops--;
-      }
-      // Wait for topic resolution to complete.
-      Thread.sleep(1000);
-    }
-
-    if (warmupLoops > 0) {
-      sendLoop(warmupLoops, warmupRate, false);
-    }
-
-    // Measure overall send rate by timing the main send loop.
-    histInit();  // Zero out data from warmup period.
-
-    long startNs = System.nanoTime();
-    int actualSends = sendLoop(optNumMsgs, optRate, true);
-    long endNs = System.nanoTime();
-    long durationNs = endNs - startNs;
-
-    if (optLingerMs > 0) {
-      Thread.sleep(optLingerMs);
-    }
-
-    assrt(numRcvMsgs > 0, "numRcvMsgs is zero");
-
-    double resultRate = durationNs;
-    resultRate /= 1000000000;
-    // Don't count initial message.
-    resultRate = (double)(actualSends - 1) / resultRate;
-
-    histPrint();
-
-    // Leave "comma space" at end of line to make parsing output easier.
-    System.out.println("actualSends=" + actualSends +
-        ", durationNs=" + durationNs + ", resultRate=" + resultRate +
-        ", globalMaxTightSends=" + globalMaxTightSends +
-        ", maxFlightSize=" + maxFlightSize + ",");
-    System.out.println("Rcv: numRcvMsgs=" + numRcvMsgs +
-        ", numRxMsgs=" + numRxMsgs + ", numUnrecLoss=" + numUnrecLoss);
-    System.out.flush();  // typically not needed, but not guaranteed.
-
-    if (persistMode != PersistMode.STREAMING) {
-      // Wait for Store to get caught up.
-      int numChecks = 0;
-      while (curFlightSize.get() > 0) {
-        numChecks++;
-        if (numChecks > 3) {
-          System.out.println("Giving up.");
-          break;
-        }
-        System.out.println("Waiting for flight size " +
-            curFlightSize + " to clear.");
-        Thread.sleep(numChecks * 1000);
-      }
-    }
-
-    deleteSource();
-
-    myRcv.close();
-
-    if (rcvThread == RcvThread.XSP) {
-      if (optSequential) {
-        myXspCtxThread.terminate();
-      }
-      myXsp.close();
-    }
-
-    if (optSequential) {
-      myCtxThread.terminate();
-    }
-    myCtx.close();
+    /* The subscriber must be "kill"ed externally. */
+    Thread.sleep(2000000000 * 1000);  // 23+ centuries.
   }  // run
 
-}  // class UmLatPing
+}  // class UmLatPong
 
 
 // Approximate clone of LBMContextThread class, modified for XSP.

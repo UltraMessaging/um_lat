@@ -3,8 +3,7 @@
   <templates>
     <template name="um_perf">
       <options type="context">
-        <option name="resolver_multicast_interface" default-value="10.29.4.0/24"/>
-        <option name="request_tcp_interface" default-value="10.29.4.0/24"/>
+        <option name="default_interface" default-value="10.29.4.0/24"/>
         <option name="resolver_multicast_address" default-value="239.101.3.1"/>
         <option name="mim_incoming_address" default-value="0.0.0.0"/>
         <option name="transport_lbtrm_data_rate_limit" default-value="100000000000"/>
