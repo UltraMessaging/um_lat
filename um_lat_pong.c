@@ -70,19 +70,9 @@ void assrt(int assertion, char *err_message)
 }  /* assrt */
 
 
-char usage_str[] = "Usage: um_lat_pong [-h] [-a affinity_rcv] [-c config] [-E] [-g] [-p persist_mode] [-R rcv_thread] [-s spin_method] [-x xml_config]";
-
-void usage(char *msg) {
-  if (msg) fprintf(stderr, "%s\n", msg);
-  fprintf(stderr, "%s\n", usage_str);
-  CPRT_NET_CLEANUP;
-  exit(1);
-}
-
 void help() {
-  fprintf(stderr, "Usage: um_lat_pong [-h] [-a affinity_rcv] [-c config] [-E] [-g] [-p persist_mode] [-R rcv_thread] [-s spin_method] [-x xml_config]\n");
-  fprintf(stderr, "%s\n", usage_str);
-  fprintf(stderr, "where:\n"
+  fprintf(stderr, "Usage: um_lat_pong [-h] [-a affinity_rcv] [-c config] [-E] [-g]\n  [-p persist_mode] [-R rcv_thread] [-s spin_method] [-x xml_config]\n");
+  fprintf(stderr, "Where:\n"
       "  -h : print help\n"
       "  -a affinity_rcv : CPU number (0..N-1) for receive thread (-1=none)\n"
       "  -c config : configuration file; can be repeated\n"
@@ -163,7 +153,8 @@ void get_my_opts(int argc, char **argv)
         o_xml_config = CPRT_STRDUP(optarg);
         /* Don't read it now since app_name might not be set yet. */
         break;
-      default: usage(NULL);
+      default:
+        fprintf(stderr, "um_lat_pong: error: unrecognized option '%c'\nUse '-h' for help\n", opt);
     }  /* switch opt */
   }  /* while getopt */
 
@@ -174,7 +165,6 @@ void get_my_opts(int argc, char **argv)
     E(lbm_config_xml_file(o_xml_config, app_name));
   }
 
-  if (optind != argc) { usage("Unexpected positional parameter(s)"); }
 }  /* get_my_opts */
 
 

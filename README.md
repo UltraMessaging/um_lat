@@ -3,6 +3,7 @@
 Tools for measuring the latency of Ultra Messaging (UM) persistence
 and streaming.
 
+
 # Table of contents
 
 - [um_lat - test programs to measure the latency of Ultra Messaging.](#um_lat---test-programs-to-measure-the-latency-of-ultra-messaging)
@@ -26,6 +27,9 @@ and streaming.
       - [System 2 (ping)](#system-2-ping)
       - [Histogram](#histogram)
   - [TEST PERSISTENCE](#test-persistence)
+  - [JAVA](#java)
+    - [System 1 (pong)](#system-1-pong)
+    - [System 2 (ping)](#system-2-ping)
   - [MEASUREMENT OUTLIERS](#measurement-outliers)
     - [INTERRUPTIONS](#interruptions)
   - [TOOL NOTES](#tool-notes)
@@ -88,16 +92,16 @@ following results:
 ### ENVIRONMENT
 
 The commands and scripts in this repository assume four environment
-variables are set up: LBM_LICENSE_INFO, LBM, LD_LIBRARY_PATH, and PATH.
+variables are set up: LBM_LICENSE_INFO, LBM, LD_LIBRARY_PATH, and CP.
 
 Here's an example of setting them up:
 ````
-export LD_LIBRARY_PATH LBM_LICENSE_INFO LBM PATH
+export LD_LIBRARY_PATH LBM_LICENSE_INFO LBM CP
 LBM_LICENSE_INFO="Product=LBM,UME,UMQ,UMDRO:Organization=UM RnD sford (RnD):Expiration-Date=never:License-Key=xxxx xxxx xxxx xxxx"
 # Path to the install directory for the UM platform.
 LBM="/home/sford/UMP_6.14/Linux-glibc-2.17-x86_64"
 LD_LIBRARY_PATH="$LBM/lib"
-PATH="$LBM/bin:$PATH"
+CP="-classpath .:/home/sford/UMP_6.14/java/UMS_6.14.jar"
 ````
 
 ### REQUIREMENTS
@@ -110,7 +114,8 @@ These should be "bare metal" machines, NOT virtual machines.
 For the lowest latency, a kernel-bypass network driver is recommended.
 For example, Solarflare NIC and Onload driver.
 3. C compiler (gcc) and related tools.
-4. Ultra Messaging version 6.14, including development files (lbm.h,
+4. Java SDK (java and javac).
+5. Ultra Messaging version 6.14, including development files (lbm.h,
 libraries, etc.).
 
 See [Test Hardware](#informatica-test-hardware) for details of Informatica's
@@ -119,7 +124,14 @@ test hosts.
 ### BUILD TEST TOOLS
 
 The "bld.sh" script can be used to build the tools.
-It relies on the "LBM" [environment variable](#environment).
+It relies on the "LBM" and "CP" [environment variables](#environment).
+
+For C programmers, the Java step may be omitted by editing "bld.sh" and
+removing the java build.
+
+For Java programmers, we recommend also building and testing with our C
+application for comparison purposes.
+
 
 ### CPU AFFINITIES
 
@@ -308,9 +320,62 @@ I.e. UM does not "know" that it is being used with Onload.
 The greater latency jitter produced by the kernel driver is purely
 the result of calling into the kernel.
 
+
 ## TEST PERSISTENCE
 
 TBD.
+
+
+## JAVA
+
+The Java programs are mostly straightforward translations of the
+C code and style to Java code and style.
+
+Note that these commands depend on the [environment variables](#environment)
+set previously, including the "CP" variable.
+
+Differences from C usage:
+* Our testing has suggested that using "sequential mode" provides a small
+latency benefit, so the Java program adds the "-S" option to use that mode.
+* Java does not support setting thread affinity, and our experimentation
+has suggested that setting affinity externally to a single CPU is bad for
+latency.
+So we remove the "-A" and "-a" options and use the "taskset" command to limit
+the program to a set of CPUs that are "close" to the NIC.
+
+
+### System 1 (pong)
+
+Enter:
+````
+java $CP UmLatPong -s f -x um.xml -E -S
+````
+
+### System 2 (ping)
+
+````
+taskset 7,8,9,10,11,12,14 java $CP UmLatPing -s f -x um.xml -m 24 -n 500000 -r 50000 -w 5,5 -H 300,1000 -S >ping.log; tail ping.log
+````
+
+Here's a sample of the output:
+````
+...
+optHistogram=300,1000, histOverflows=18, histMinSample=20789, histMaxSample=528731,
+histNuMSamples=500000, averageSample=23552,
+Percentiles: 90=25000, 99=34000, 99.9=56000, 99.99=128000, 99.999=-1
+actualSends=500000, durationNs=9999984551, resultRate=49999.977244964844, globalMaxTightSends=5, maxFlightSize=500005,
+Rcv: numRcvMsgs=500004, numRxMsgs=0, numUnrecLoss=0
+````
+
+Note the "-1" value for the 99.999 percentile.
+That's because of the 18 histogram overflows,
+meaning we don't know what their latencies are.
+With 500,000 messages, 99.999% represents 499,995.
+So anything over five overflows means we can't calculate the 99.999%.
+
+As you can see, when measured to microsecond resolution, C and Java perform
+the same up to the 99th percentile.
+After that, Java shows greater outliers.
 
 
 ## MEASUREMENT OUTLIERS
@@ -369,23 +434,26 @@ All the latency calculations are done in the "ping" tool.
 
 The um_lat_ping tool prints a brief help when the "-h" flag is supplied:
 ````
-Usage: um_lat_ping [-h] [-A affinity_src] [-a affinity_rcv] [-c config] [-g] [-H hist_num_buckets,hist_ns_per_bucket] [-l linger_ms] [-m msg_len] [-n num_msgs] [-p persist_mode] [-R rcv_thread] [-r rate] [-s spin_method] [-w warmup_loops,warmup_rate] [-x xml_config]
-where:
+Usage: um_lat_ping [-h] [-A affinity_src] [-a affinity_rcv] [-c config]
+  [-g] -H hist_num_buckets,hist_ns_per_bucket [-l linger_ms] -m msg_len
+  -n num_msgs [-p persist_mode] [-R rcv_thread] -r rate [-s spin_method]
+  [-w warmup_loops,warmup_rate] [-x xml_config]
+Where (those marked with 'R' are required):
   -h : print help
-  -A affinity_src : CPU number (0..N-1) for send thread (-1=none) [-1]
-  -a affinity_rcv : CPU number (0..N-1) for receive thread (-1=none) [-1]
-  -c config : configuration file; can be repeated []
-  -g : generic source [0]
-  -H hist_num_buckets,hist_ns_per_bucket : send time histogram [0,0]
-  -l linger_ms : linger time before source delete [1000]
-  -m msg_len : message length [0]
-  -n num_msgs : number of messages to send [0]
-  -p persist_mode : '' (empty)=streaming, 'r'=RPP, 's'=SPP []
-  -R rcv_thread : '' (empty)=main context, 'c'=separate context, 'x'=XSP []
-  -r rate : messages per second to send [0]
-  -s spin_method : '' (empty)=no spin, 'f'=fd mgt busy, 'p'=proc events []
-  -w warmup_loops,warmup_rate : messages to send before measurement [0,0]
-  -x xml_config : XML configuration file []
+  -A affinity_src : CPU number (0..N-1) for send thread (-1=none)
+  -a affinity_rcv : CPU number (0..N-1) for receive thread (-1=none)
+  -c config : configuration file; can be repeated
+  -g : generic source
+R -H hist_num_buckets,hist_ns_per_bucket : send time histogram
+  -l linger_ms : linger time before source delete
+R -m msg_len : message length
+R -n num_msgs : number of messages to send
+  -p persist_mode : '' (empty)=streaming, 'r'=RPP, 's'=SPP
+  -R rcv_thread : '' (empty)=main context, 'x'=XSP
+R -r rate : messages per second to send
+  -s spin_method : '' (empty)=no spin, 'f'=fd mgt busy
+  -w warmup_loops,warmup_rate : messages to send before measurement
+  -x xml_config : XML configuration file
 ````
 
 You can modify send rate, message length, number of messages, etc.
@@ -428,17 +496,18 @@ We have found that a small number like 5 is usually enough.
 
 The um_lat_pong tool prints a brief help when the "-h" flag is supplied:
 ````
-Usage: um_lat_pong [-h] [-a affinity_rcv] [-c config] [-E] [-g] [-p persist_mode] [-R rcv_thread] [-s spin_method] [-x xml_config]
-where:
+Usage: um_lat_pong [-h] [-a affinity_rcv] [-c config] [-E] [-g]
+  [-p persist_mode] [-R rcv_thread] [-s spin_method] [-x xml_config]
+Where:
   -h : print help
-  -a affinity_rcv : CPU number (0..N-1) for receive thread (-1=none) [-1]
-  -c config : configuration file; can be repeated []
-  -E : exit on EOS [0]
-  -g : generic source [0]
-  -p persist_mode : '' (empty)=streaming, 'r'=RPP, 's'=SPP []
-  -R rcv_thread : '' (empty)=main context, 'c'=separate context, 'x'=XSP []
-  -s spin_method : '' (empty)=no spin, 'f'=fd mgt busy, 'p'=proc events []
-  -x xml_config : configuration file []
+  -a affinity_rcv : CPU number (0..N-1) for receive thread (-1=none)
+  -c config : configuration file; can be repeated
+  -E : exit on EOS
+  -g : generic source
+  -p persist_mode : '' (empty)=streaming, 'r'=RPP, 's'=SPP
+  -R rcv_thread : '' (empty)=main context, 'x'=XSP
+  -s spin_method : '' (empty)=no spin, 'f'=fd mgt busy
+  -x xml_config : configuration file
 ````
 
 This tool has one "hot" thread: receiver

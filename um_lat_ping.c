@@ -86,7 +86,7 @@ void assrt(int assertion, char *err_message)
 
 
 void help() {
-  fprintf(stderr, "Usage: um_lat_ping [-h] [-A affinity_src] [-a affinity_rcv] [-c config] [-g] -H hist_num_buckets,hist_ns_per_bucket [-l linger_ms] -m msg_len -n num_msgs [-p persist_mode] [-R rcv_thread] -r rate [-s spin_method] [-w warmup_loops,warmup_rate] [-x xml_config]\n");
+  fprintf(stderr, "Usage: um_lat_ping [-h] [-A affinity_src] [-a affinity_rcv] [-c config]\n  [-g] -H hist_num_buckets,hist_ns_per_bucket [-l linger_ms] -m msg_len\n  -n num_msgs [-p persist_mode] [-R rcv_thread] -r rate [-s spin_method]\n  [-w warmup_loops,warmup_rate] [-x xml_config]\n");
   fprintf(stderr, "Where (those marked with 'R' are required):\n"
       "  -h : print help\n"
       "  -A affinity_src : CPU number (0..N-1) for send thread (-1=none)\n"

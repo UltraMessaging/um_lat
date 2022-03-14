@@ -91,10 +91,11 @@ class UmLatPong implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
 
 
   private void help() {
-    System.out.println("Usage: UmLatPong [-h] [-c config] [-g] [-p persist_mode] [-R rcv_thread] [-S] [-s spin_method] [-x xml_config]\n");
+    System.out.println("Usage: UmLatPong [-h] [-E] [-c config] [-g] [-p persist_mode] [-R rcv_thread] [-S] [-s spin_method] [-x xml_config]\n");
     System.out.println("Where (those marked with 'R' are required):\n" +
       "  -h : print help\n" +
       "  -c config : configuration file; can be repeated\n" +
+      "  -E : Exit on EOS\n" +
       "  -g : generic source\n"  +
       "  -p persist_mode : '' (empty)=streaming, 'r'=RPP, 's'=SPP\n" +
       "  -R rcv_thread : '' (empty)=main context, 'x'=XSP\n" +
@@ -121,6 +122,7 @@ class UmLatPong implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
             optConfig = optArg(args, argNum ++);
             LBM.setConfiguration(optConfig);
             break;
+          case "-E": optExitOnEos = true; break;
           case "-g": optGenericSrc = true; break;
           case "-p":
             optPersistMode = optArg(args, argNum ++);
@@ -339,9 +341,12 @@ class UmLatPong implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
 
       case LBM.MSG_EOS:
         System.out.println("rcv event EOS, '" + msg.topicName() +
-            "', " + msg.source() + ", numRcvMsgs=" + numRcvMsgs +
+            "', source=" + msg.source() + ", numRcvMsgs=" + numRcvMsgs +
             ", numRxMsgs=" + numRxMsgs + ", numUnrecLoss=" + numUnrecLoss + ",");
         System.out.flush();  // typically not needed, but not guaranteed.
+        if (optExitOnEos) {
+          System.exit(0);
+        }
         break;
 
       case LBM.MSG_UME_REGISTRATION_ERROR:
@@ -429,7 +434,7 @@ class UmLatPong implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
     createReceiver(myCtx);
 
     /* The subscriber must be "kill"ed externally. */
-    Thread.sleep(2000000000 * 1000);  // 23+ centuries.
+    Thread.sleep(2000000000l * 1000l);  // 23+ centuries.
   }  // run
 
 }  // class UmLatPong
