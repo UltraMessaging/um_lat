@@ -77,13 +77,13 @@ void get_my_opts(int argc, char **argv)
   o_histogram = CPRT_STRDUP("0,0");
   o_interface = CPRT_STRDUP("");
 
-  while ((opt = getopt(argc, argv, "ha:g:H:i:")) != EOF) {
+  while ((opt = cprt_getopt(argc, argv, "ha:g:H:i:")) != EOF) {
     switch (opt) {
       case 'h': help(); break;
-      case 'a': CPRT_ATOI(optarg, o_affinity_cpu); break;
-      case 'g': free(o_group); o_group = CPRT_STRDUP(optarg); break;
-      case 'H': free(o_histogram); o_histogram = CPRT_STRDUP(optarg); break;
-      case 'i': free(o_interface); o_interface = CPRT_STRDUP(optarg); break;
+      case 'a': CPRT_ATOI(cprt_optarg, o_affinity_cpu); break;
+      case 'g': free(o_group); o_group = CPRT_STRDUP(cprt_optarg); break;
+      case 'H': free(o_histogram); o_histogram = CPRT_STRDUP(cprt_optarg); break;
+      case 'i': free(o_interface); o_interface = CPRT_STRDUP(cprt_optarg); break;
       default: usage(NULL);
     }  /* switch opt */
   }  /* while getopt */
@@ -116,7 +116,7 @@ void get_my_opts(int argc, char **argv)
   memset((char *)&iface_in, 0, sizeof(iface_in));
   ASSRT(inet_aton(o_interface, &iface_in) != 0);
 
-  if (optind != argc) { usage("Unexpected positional parameter(s)"); }
+  if (cprt_optind != argc) { usage("Unexpected positional parameter(s)"); }
 }  /* get_my_opts */
 
 

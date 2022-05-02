@@ -122,21 +122,21 @@ void get_my_opts(int argc, char **argv)
   o_warmup = CPRT_STRDUP("0,0");
   o_xml_config = CPRT_STRDUP("");
 
-  while ((opt = getopt(argc, argv, "hA:a:c:gH:l:L:m:n:p:R:r:s:w:x:")) != EOF) {
+  while ((opt = cprt_getopt(argc, argv, "hA:a:c:gH:l:L:m:n:p:R:r:s:w:x:")) != EOF) {
     switch (opt) {
       case 'h': help(); break;
-      case 'A': CPRT_ATOI(optarg, o_affinity_src); break;
-      case 'a': CPRT_ATOI(optarg, o_affinity_rcv); break;
+      case 'A': CPRT_ATOI(cprt_optarg, o_affinity_src); break;
+      case 'a': CPRT_ATOI(cprt_optarg, o_affinity_rcv); break;
       /* Allow -c to be repeated, loading each config file in succession. */
       case 'c':
         free(o_config);
-        o_config = CPRT_STRDUP(optarg);
+        o_config = CPRT_STRDUP(cprt_optarg);
         E(lbm_config(o_config));
         break;
       case 'g': o_generic_src = 1; break;
       case 'H': {
         free(o_histogram);
-        o_histogram = CPRT_STRDUP(optarg);
+        o_histogram = CPRT_STRDUP(cprt_optarg);
         char *work_str = CPRT_STRDUP(o_histogram);
         char *strtok_context;
         char *hist_num_buckets_str = CPRT_STRTOK(work_str, ",", &strtok_context);
@@ -151,12 +151,12 @@ void get_my_opts(int argc, char **argv)
         free(work_str);
         break;
       }
-      case 'l': CPRT_ATOI(optarg, o_linger_ms); break;
-      case 'm': CPRT_ATOI(optarg, o_msg_len); break;
-      case 'n': CPRT_ATOI(optarg, o_num_msgs); break;
+      case 'l': CPRT_ATOI(cprt_optarg, o_linger_ms); break;
+      case 'm': CPRT_ATOI(cprt_optarg, o_msg_len); break;
+      case 'n': CPRT_ATOI(cprt_optarg, o_num_msgs); break;
       case 'p':
         free(o_persist_mode);
-        o_persist_mode = CPRT_STRDUP(optarg);
+        o_persist_mode = CPRT_STRDUP(cprt_optarg);
         if (strcasecmp(o_persist_mode, "") == 0) {
           app_name = "um_perf";
           persist_mode = STREAMING;
@@ -172,7 +172,7 @@ void get_my_opts(int argc, char **argv)
         break;
       case 'R':
         free(o_rcv_thread);
-        o_rcv_thread = CPRT_STRDUP(optarg);
+        o_rcv_thread = CPRT_STRDUP(cprt_optarg);
         if (strcasecmp(o_rcv_thread, "") == 0) {
           rcv_thread = MAIN_CTX;
         } else if (strcasecmp(o_rcv_thread, "x") == 0) {
@@ -181,10 +181,10 @@ void get_my_opts(int argc, char **argv)
           assrt(0, "Error, -R value must be '' or 'x'\n");
         }
         break;
-      case 'r': CPRT_ATOI(optarg, o_rate); break;
+      case 'r': CPRT_ATOI(cprt_optarg, o_rate); break;
       case 's':
         free(o_spin_method);
-        o_spin_method = CPRT_STRDUP(optarg);
+        o_spin_method = CPRT_STRDUP(cprt_optarg);
         if (strcasecmp(o_spin_method, "") == 0) {
           spin_method = NO_SPIN;
         } else if (strcasecmp(o_spin_method, "f") == 0) {
@@ -195,7 +195,7 @@ void get_my_opts(int argc, char **argv)
         break;
       case 'w': {
         free(o_warmup);
-        o_warmup = CPRT_STRDUP(optarg);
+        o_warmup = CPRT_STRDUP(cprt_optarg);
         char *work_str = CPRT_STRDUP(o_warmup);
         char *strtok_context;
         char *warmup_loops_str = CPRT_STRTOK(work_str, ",", &strtok_context);
@@ -215,7 +215,7 @@ void get_my_opts(int argc, char **argv)
       }
       case 'x':
         free(o_xml_config);
-        o_xml_config = CPRT_STRDUP(optarg);
+        o_xml_config = CPRT_STRDUP(cprt_optarg);
         /* Don't read it now since app_name might not be set yet. */
         break;
       default:
@@ -224,7 +224,7 @@ void get_my_opts(int argc, char **argv)
     }  /* switch opt */
   }  /* while getopt */
 
-  if (optind != argc) { assrt(0, "Unexpected positional parameter(s)"); }
+  if (cprt_optind != argc) { assrt(0, "Unexpected positional parameter(s)"); }
 
   /* Must supply certain required "options". */
   assrt(o_rate > 0, "Must supply '-r rate'");

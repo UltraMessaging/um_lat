@@ -99,21 +99,21 @@ void get_my_opts(int argc, char **argv)
   o_spin_method = CPRT_STRDUP("");
   o_xml_config = CPRT_STRDUP("");
 
-  while ((opt = getopt(argc, argv, "ha:c:Egp:R:s:x:")) != EOF) {
+  while ((opt = cprt_getopt(argc, argv, "ha:c:Egp:R:s:x:")) != EOF) {
     switch (opt) {
       case 'h': help(); break;
-      case 'a': CPRT_ATOI(optarg, o_affinity_rcv); break;
+      case 'a': CPRT_ATOI(cprt_optarg, o_affinity_rcv); break;
       /* Allow -c to be repeated, loading each config file in succession. */
       case 'c':
         free(o_config);
-        o_config = CPRT_STRDUP(optarg);
+        o_config = CPRT_STRDUP(cprt_optarg);
         E(lbm_config(o_config));  /* Allow multiple calls. */
         break;
       case 'E': o_exit_on_eos = 1; break;
       case 'g': o_generic_src = 1; break;
       case 'p':
         free(o_persist_mode);
-        o_persist_mode = CPRT_STRDUP(optarg);
+        o_persist_mode = CPRT_STRDUP(cprt_optarg);
         if (strcasecmp(o_persist_mode, "") == 0) {
           app_name = "um_perf";
           persist_mode = STREAMING;
@@ -128,7 +128,7 @@ void get_my_opts(int argc, char **argv)
         }
       case 'R':
         free(o_rcv_thread);
-        o_rcv_thread = CPRT_STRDUP(optarg);
+        o_rcv_thread = CPRT_STRDUP(cprt_optarg);
         if (strcasecmp(o_rcv_thread, "") == 0) {
           rcv_thread = MAIN_CTX;
         } else if (strcasecmp(o_rcv_thread, "x") == 0) {
@@ -139,7 +139,7 @@ void get_my_opts(int argc, char **argv)
         break;
       case 's':
         free(o_spin_method);
-        o_spin_method = CPRT_STRDUP(optarg);
+        o_spin_method = CPRT_STRDUP(cprt_optarg);
         if (strcasecmp(o_spin_method, "") == 0) {
           spin_method = NO_SPIN;
         } else if (strcasecmp(o_spin_method, "f") == 0) {
@@ -150,7 +150,7 @@ void get_my_opts(int argc, char **argv)
         break;
       case 'x':
         free(o_xml_config);
-        o_xml_config = CPRT_STRDUP(optarg);
+        o_xml_config = CPRT_STRDUP(cprt_optarg);
         /* Don't read it now since app_name might not be set yet. */
         break;
       default:
@@ -158,7 +158,7 @@ void get_my_opts(int argc, char **argv)
     }  /* switch opt */
   }  /* while getopt */
 
-  if (optind != argc) { assrt(0, "Unexpected positional parameter(s)"); }
+  if (cprt_optind != argc) { assrt(0, "Unexpected positional parameter(s)"); }
 
   /* Waited to read xml config (if any) so that app_name is set up right. */
   if (strlen(o_xml_config) > 0) {

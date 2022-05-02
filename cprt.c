@@ -21,46 +21,83 @@
 #include "cprt.h"
 
 #include <stdio.h>
+#include <ctype.h>
 #include <string.h>
 #include <time.h>
 #include <errno.h>
 
 #if defined(_WIN32)
 LARGE_INTEGER cprt_frequency;
+LARGE_INTEGER cprt_start_time;
 #endif
 
 
 #if defined(_WIN32)
+int cprt_timeofday(struct cprt_timeval *tv, void *unused_tz)
+{
+  FILETIME tfile;
+  uint64_t time;
+  /* Static constant to remove time skew between FILETIME and POSIX
+   * time.  POSIX and Win32 use different epochs (Jan. 1, 1970 v.s.
+   * Jan. 1, 1601).  The following constant defines the difference
+   * in 100ns ticks.  */
+  static const uint64_t EPOCH = ((uint64_t) 116444736000000000ULL);
+
+  GetSystemTimeAsFileTime (&tfile);
+  time = (uint64_t)tfile.dwLowDateTime;
+  time += ((uint64_t)tfile.dwHighDateTime) << 32;
+
+  tv->tv_sec = (long)((time - EPOCH) / 10000000L);
+  tv->tv_usec = (long)(((time - EPOCH) / 10) % 1000000L);
+
+  return 0;
+}  /* cprt_timeofday */
+
+
 void cprt_inittime()
 {
   QueryPerformanceFrequency(&cprt_frequency);
+  QueryPerformanceCounter(&cprt_start_time);
 }  /* cprt_inittime */
 
-void cprt_gettime(struct timespec *ts)
+
+void cprt_gettime(struct cprt_timespec *ts)
 {
   LARGE_INTEGER ticks;
   uint64_t ns;
 
   QueryPerformanceCounter(&ticks);
-  ns = ticks.QuadPart;
-  ns *= 1000000000;
-  ns /= cprt_frequency.QuadPart;
+  ns = ticks.QuadPart - cprt_start_time.QuadPart;
+  ns *= (1000000000/cprt_frequency.QuadPart);
 
-  ts->tv_sec = ns / 1000000000;
-  ts->tv_sec = ns % 1000000000;
+  ts->tv_sec = (time_t)(ns / 1000000000);
+  ts->tv_nsec = (long)(ns % 1000000000);
 }  /* cprt_gettime */
+
 
 #elif defined(__APPLE__)
 void cprt_inittime()
 {
 }  /* cprt_inittime */
 
+
 #else  /* Non-Apple Unixes */
 void cprt_inittime()
 {
 }  /* cprt_inittime */
 
+
 #endif
+
+
+void cprt_localtime_r(time_t *timep, struct tm *result)
+{
+#if defined(_WIN32)
+  int i = localtime_s(result, timep);
+#else  /* Unixes */
+  localtime_r(timep, result);
+#endif
+}  /* cprt_localtime_r */
 
 char *cprt_strerror(int errnum, char *buffer, size_t buf_sz)
 {
@@ -149,150 +186,97 @@ int cprt_try_affinity(uint64_t in_mask)
 }  /* cprt_try_affinity */
 
 
-#if defined(_WIN32)
-/*******************************************************************************
- * Copyright (c) 2012-2017, Kim Grasman <kim.grasman@gmail.com>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
- *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in the
- *     documentation and/or other materials provided with the distribution.
- *   * Neither the name of Kim Grasman nor the
- *     names of contributors may be used to endorse or promote products
- *     derived from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL KIM GRASMAN BE LIABLE FOR ANY
- * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- ******************************************************************************/
+/* Portable getopt(). */
+char* cprt_optarg;
+int cprt_optopt;
+int cprt_optind = 1;  /* Next argv to process. */
+int cprt_opterr = 1;  /* Print errors to stderr. */
 
-char* optarg;
-int optopt;
-/* The variable optind [...] shall be initialized to 1 by the system. */
-int optind = 1;
-int opterr;
+int cprt_getopt(int argc, char *const argv[], const char *optstring)
+{
+  char *argv_str;
+  char *opt_spec;  /* Option specifier in optstring. */
+  int argv_len;
 
-static char* optcursor = NULL;
+  cprt_optarg = NULL;
+  cprt_optopt = 0;
 
-/* Implemented based on [1] and [2] for optional arguments.
-   optopt is handled FreeBSD-style, per [3].
-   Other GNU and FreeBSD extensions are purely accidental.
+  if (cprt_optind >= argc) {
+    /* End of command line. */
+    return EOF;
+  };
 
-[1] http://pubs.opengroup.org/onlinepubs/000095399/functions/getopt.html
-[2] http://www.kernel.org/doc/man-pages/online/pages/man3/getopt.3.html
-[3] http://www.freebsd.org/cgi/man.cgi?query=getopt&sektion=3&manpath=FreeBSD+9.0-RELEASE
-*/
-int getopt(int argc, char* const argv[], const char* optstring) {
-  int optchar = -1;
-  const char* optdecl = NULL;
+  argv_str = argv[cprt_optind];
 
-  optarg = NULL;
-  opterr = 0;
-  optopt = 0;
-
-  /* Unspecified, but we need it to avoid overrunning the argv bounds. */
-  if (optind >= argc)
-    goto no_more_optchars;
-
-  /* If, when getopt() is called argv[optind] is a null pointer, getopt()
-     shall return -1 without changing optind. */
-  if (argv[optind] == NULL)
-    goto no_more_optchars;
-
-  /* If, when getopt() is called *argv[optind]  is not the character '-',
-     getopt() shall return -1 without changing optind. */
-  if (*argv[optind] != '-')
-    goto no_more_optchars;
-
-  /* If, when getopt() is called argv[optind] points to the string "-",
-     getopt() shall return -1 without changing optind. */
-  if (strcmp(argv[optind], "-") == 0)
-    goto no_more_optchars;
-
-  /* If, when getopt() is called argv[optind] points to the string "--",
-     getopt() shall return -1 after incrementing optind. */
-  if (strcmp(argv[optind], "--") == 0) {
-    ++optind;
-    goto no_more_optchars;
+  argv_len = strlen(argv_str);
+  if (argv_len < 2) {
+    /* A single character, even if a '-', is not an option. Its an arg. */
+    return EOF;
+  }
+  if (argv_str[0] != '-') {
+    /* No more options, this argv is the first arg. */
+    return EOF;
+  }
+  if (strcmp(argv_str, "--") == 0) {
+    /* Special "--" option; next argv is arg. */
+    cprt_optind++;
+    return EOF;
   }
 
-  if (optcursor == NULL || *optcursor == '\0')
-    optcursor = argv[optind] + 1;
-
-  optchar = *optcursor;
-
-  /* FreeBSD: The variable optopt saves the last known option character
-     returned by getopt(). */
-  optopt = optchar;
-
-  /* The getopt() function shall return the next option character (if one is
-     found) from argv that matches a character in optstring, if there is
-     one that matches. */
-  optdecl = strchr(optstring, optchar);
-  if (optdecl) {
-    /* [I]f a character is followed by a colon, the option takes an
-       argument. */
-    if (optdecl[1] == ':') {
-      optarg = ++optcursor;
-      if (*optarg == '\0') {
-        /* GNU extension: Two colons mean an option takes an
-           optional arg; if there is text in the current argv-element
-           (i.e., in the same word as the option name itself, for example,
-           "-oarg"), then it is returned in optarg, otherwise optarg is set
-           to zero. */
-        if (optdecl[2] != ':') {
-          /* If the option was the last character in the string pointed to by
-             an element of argv, then optarg shall contain the next element
-             of argv, and optind shall be incremented by 2. If the resulting
-             value of optind is greater than argc, this indicates a missing
-             option-argument, and getopt() shall return an error indication.
-
-             Otherwise, optarg shall point to the string following the
-             option character in that element of argv, and optind shall be
-             incremented by 1.
-          */
-          if (++optind < argc) {
-            optarg = argv[optind];
-          } else {
-            /* If it detects a missing option-argument, it shall return the
-               colon character ( ':' ) if the first character of optstring
-               was a colon, or a question-mark character ( '?' ) otherwise.
-            */
-            optarg = NULL;
-            optchar = (optstring[0] == ':') ? ':' : '?';
-          }
-        } else {
-          optarg = NULL;
-        }
-      }
-
-      optcursor = NULL;
+  cprt_optopt = argv_str[1];
+  if (! isgraph(cprt_optopt)) {
+    if (cprt_opterr != 0) {
+      fprintf(stderr, "Error, argv[%d] has non-printable character.\n", cprt_optind);
     }
-  } else {
-    /* If getopt() encounters an option character that is not contained in
-       optstring, it shall return the question-mark ( '?' ) character. */
-    optchar = '?';
+    return '?';
+  }
+  opt_spec = strchr("-:;", cprt_optopt);
+  if (strchr("-:;", cprt_optopt) != NULL) {
+    if (cprt_opterr != 0) {
+      fprintf(stderr, "Error, '%c' not a valid option character.\n", cprt_optopt);
+    }
+    return '?';
   }
 
-  if (optcursor == NULL || *++optcursor == '\0')
-    ++optind;
+  opt_spec = strchr(optstring, cprt_optopt);
+  if (opt_spec == NULL) {
+    if (cprt_opterr != 0) {
+      fprintf(stderr, "Error, '%c' not a defined option.\n", cprt_optopt);
+    }
+    return '?';
+  }
 
-  return optchar;
+  /* User specified a valid option. See if needs value. */
+  if (opt_spec[1] == ':') {
+    /* Value is needed. See if it's part of the same argv. */
+    if (argv_len > 2) {
+      cprt_optarg = &argv_str[2];
+      cprt_optind++;  /* Next option. */
+      return cprt_optopt;
+    }
 
-no_more_optchars:
-  optcursor = NULL;
-  return -1;
-}
-#endif
+    cprt_optind++;  /* Value must be next argv. */
+    if (cprt_optind >= argc) {
+      /* Ran out of argvs, value not supplied. */
+      if (cprt_opterr != 0) {
+        fprintf(stderr, "Error, '-%c' requires value.\n", cprt_optopt);
+      }
+      return '?';
+    }
+    cprt_optarg = argv[cprt_optind];
+    cprt_optind++;  /* Next option. */
+    return cprt_optopt;
+  }
+  else {  /* Option has no value. */
+    if (argv_len > 2) {
+      /* This getopt() implementation does not support multiple options
+       * in one argv. */
+      if (cprt_opterr != 0) {
+        fprintf(stderr, "Error, '-%c' must have no value.\n", cprt_optopt);
+      }
+      return '?';
+    }
+    cprt_optind++;  /* Next option. */
+    return cprt_optopt;
+  }
+}  /* cprt_getopt */
