@@ -93,7 +93,7 @@ void help() {
       "  -a affinity_rcv : CPU number (0..N-1) for receive thread (-1=none)\n"
       "  -c config : configuration file; can be repeated\n"
       "  -g : generic source\n"
-      "R -H hist_num_buckets,hist_ns_per_bucket : send time histogram\n"
+      "R -H hist_num_buckets,hist_ns_per_bucket : round-trip time histogram\n"
       "  -l linger_ms : linger time before source delete\n"
       "R -m msg_len : message length\n"
       "R -n num_msgs : number of messages to send\n"
