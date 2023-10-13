@@ -1,11 +1,18 @@
 #!/bin/sh
 # bld.sh - build the programs on Linux.
 
-# User must have environment set up:
-# LBM - path for your LBM platform. Eg: "$HOME/UMP_6.14/Linux-glibc-2.17-x86_64"
-# LD_LIBRARY_PATH - path for your LBM libraries. Eg: "$LBM/lib"
-# CP - classpath option for java. Eg: "-classpath .:$HOME/UMP_6.14/java/UMS_6.14.jar"
-# LBM_LICENSE_INFO - license key. Eg: "Product=LBM:Organization=Your org:Expiration-Date=never:License-Key=..."
+# Update TOC in doc
+for F in *.md; do :
+  if egrep "<!-- mdtoc-start -->" $F >/dev/null; then :
+    # Update doc table of contents (see https://github.com/fordsfords/mdtoc).
+    if which mdtoc.pl >/dev/null; then mdtoc.pl -b "" $F;
+    elif [ -x ../mdtoc/mdtoc.pl ]; then ../mdtoc/mdtoc.pl -b "" $F;
+    else echo "FYI: mdtoc.pl not found; see https://github.com/fordsfords/mdtoc"; exit 1
+    fi
+  fi
+done
+
+. ./lbm.sh
 
 # For Linux
 LIBS="-l pthread -l m -l rt"

@@ -6,37 +6,38 @@ and streaming.
 
 # Table of contents
 
-- [um_lat - test programs to measure the latency of Ultra Messaging.](#um_lat---test-programs-to-measure-the-latency-of-ultra-messaging)
-- [Table of contents](#table-of-contents)
-  - [COPYRIGHT AND LICENSE](#copyright-and-license)
-  - [REPOSITORY](#repository)
-  - [INTRODUCTION](#introduction)
-    - [ENVIRONMENT](#environment)
-    - [REQUIREMENTS](#requirements)
-    - [BUILD TEST TOOLS](#build-test-tools)
-    - [CPU AFFINITIES](#cpu-affinities)
-    - [UPDATE CONFIGURATION FILE](#update-configuration-file)
-      - [UM CONFIGURATION FILE](#um-configuration-file)
-  - [TEST STREAMING](#test-streaming)
-    - [KERNEL DRIVER](#kernel-driver)
-      - [System 1 (pong)](#system-1-pong)
-      - [System 2 (ping)](#system-2-ping)
-      - [Histogram](#histogram)
-    - [ONLOAD DRIVER](#onload-driver)
-      - [System 1 (pong)](#system-1-pong)
-      - [System 2 (ping)](#system-2-ping)
-      - [Histogram](#histogram)
-  - [TEST PERSISTENCE](#test-persistence)
-  - [JAVA](#java)
-    - [System 1 (pong)](#system-1-pong)
-    - [System 2 (ping)](#system-2-ping)
-  - [MEASUREMENT OUTLIERS](#measurement-outliers)
-    - [INTERRUPTIONS](#interruptions)
-  - [TOOL NOTES](#tool-notes)
-    - [UM_LAT_PING.C](#um_lat_pingc)
-    - [UM_LAT_PONG.C](#um_lat_pongc)
-
-<sup>(table of contents from https://luciopaiva.com/markdown-toc/)</sup>
+<!-- mdtoc-start -->
+&bull; [um_lat - test programs to measure the latency of Ultra Messaging.](#um_lat---test-programs-to-measure-the-latency-of-ultra-messaging)  
+&bull; [Table of contents](#table-of-contents)  
+&nbsp;&nbsp;&nbsp;&nbsp;&bull; [COPYRIGHT AND LICENSE](#copyright-and-license)  
+&nbsp;&nbsp;&nbsp;&nbsp;&bull; [REPOSITORY](#repository)  
+&nbsp;&nbsp;&nbsp;&nbsp;&bull; [INTRODUCTION](#introduction)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [ENVIRONMENT](#environment)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [REQUIREMENTS](#requirements)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [BUILD TEST TOOLS](#build-test-tools)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [CPU AFFINITIES](#cpu-affinities)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [UPDATE CONFIGURATION FILE](#update-configuration-file)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [UM CONFIGURATION FILE](#um-configuration-file)  
+&nbsp;&nbsp;&nbsp;&nbsp;&bull; [TEST STREAMING](#test-streaming)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [KERNEL DRIVER](#kernel-driver)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [System 1 (pong)](#system-1-pong)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [System 2 (ping)](#system-2-ping)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Histogram](#histogram)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [ONLOAD DRIVER](#onload-driver)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [System 1 (pong)](#system-1-pong)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [System 2 (ping)](#system-2-ping)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Histogram](#histogram)  
+&nbsp;&nbsp;&nbsp;&nbsp;&bull; [TEST PERSISTENCE](#test-persistence)  
+&nbsp;&nbsp;&nbsp;&nbsp;&bull; [JAVA](#java)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [System 1 (pong)](#system-1-pong)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [System 2 (ping)](#system-2-ping)  
+&nbsp;&nbsp;&nbsp;&nbsp;&bull; [MEASUREMENT OUTLIERS](#measurement-outliers)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [INTERRUPTIONS](#interruptions)  
+&nbsp;&nbsp;&nbsp;&nbsp;&bull; [TOOL NOTES](#tool-notes)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [UM_LAT_PING.C](#um_lat_pingc)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [UM_LAT_PONG.C](#um_lat_pongc)  
+<!-- TOC created by '../mdtoc/mdtoc.pl README.md' (see https://github.com/fordsfords/mdtoc) -->
+<!-- mdtoc-end -->
 
 ## COPYRIGHT AND LICENSE
 
@@ -122,6 +123,8 @@ See [Test Hardware](#informatica-test-hardware) for details of Informatica's
 test hosts.
 
 ### BUILD TEST TOOLS
+
+Copy the "lbm.sh.example" to "lbm.sh" and modify per your environment.
 
 The "bld.sh" script can be used to build the tools.
 It relies on the "LBM" and "CP" [environment variables](#environment).

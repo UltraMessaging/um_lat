@@ -1,0 +1,15 @@
+#!/bin/sh
+# lbm.sh.example. Copy to "lbm.sh" and replace license info with yours.
+
+LBM_LICENSE_INFO="Product=LBM,UME,UMQ,UMDRO:Organization=xxxx:Expiration-Date=never:License-Key=xxxx xxxx xxxx xxxx"
+export LBM_LICENSE_INFO
+
+L=$HOME/UMP_6.14/
+LBM=$L/Linux-glibc-2.17-x86_64
+LBMJ=$L/java
+
+LD_LIBRARY_PATH=$LBM/lib
+export LD_LIBRARY_PATH
+
+PATH="$LBM/bin:$L/SRS/bin:$L/MCS/bin:$PATH"
+export PATH
