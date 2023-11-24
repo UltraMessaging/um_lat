@@ -107,17 +107,19 @@ CP="-classpath .:/home/sford/UMP_6.14/java/UMS_6.14.jar"
 
 ### REQUIREMENTS
 
-1. 3 Linux-based hosts (X86, 64-bit).
-16 gigabytes or more memory.
-One host should have a fast disk.
+1. 2 Linux-based hosts (X86, 64-bit).
+8 gigabytes or more memory.
 These should be "bare metal" machines, NOT virtual machines.
 2. 10-gigabit network.
 For the lowest latency, a kernel-bypass network driver is recommended.
-For example, Solarflare NIC and Onload driver.
+(We use Solarflare NICs and Open Onload driver.)
 3. C compiler (gcc) and related tools.
 4. Java SDK (java and javac).
-5. Ultra Messaging version 6.14, including development files (lbm.h,
-libraries, etc.).
+5. Ultra Messaging version 6.14 or beyond,
+including development files (lbm.h, libraries, etc.).
+It is possible to use pre-6.14, but some work will need to
+be done to the configuration and possibly the code.
+Contact UM Support.
 
 See [Test Hardware](#informatica-test-hardware) for details of Informatica's
 test hosts.
