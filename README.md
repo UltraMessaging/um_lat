@@ -9,37 +9,28 @@ and streaming.
 <!-- mdtoc-start -->
 &bull; [um_lat - test programs to measure the latency of Ultra Messaging.](#um_lat---test-programs-to-measure-the-latency-of-ultra-messaging)  
 &bull; [Table of contents](#table-of-contents)  
-&nbsp;&nbsp;&nbsp;&nbsp;&bull; [COPYRIGHT AND LICENSE](#copyright-and-license)  
-&nbsp;&nbsp;&nbsp;&nbsp;&bull; [REPOSITORY](#repository)  
-&nbsp;&nbsp;&nbsp;&nbsp;&bull; [INTRODUCTION](#introduction)  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [ENVIRONMENT](#environment)  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [REQUIREMENTS](#requirements)  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [BUILD TEST TOOLS](#build-test-tools)  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [CPU AFFINITIES](#cpu-affinities)  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [UPDATE CONFIGURATION FILE](#update-configuration-file)  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [UM CONFIGURATION FILE](#um-configuration-file)  
-&nbsp;&nbsp;&nbsp;&nbsp;&bull; [TEST STREAMING](#test-streaming)  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [KERNEL DRIVER](#kernel-driver)  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [System 1 (pong)](#system-1-pong)  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [System 2 (ping)](#system-2-ping)  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Histogram](#histogram)  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [ONLOAD DRIVER](#onload-driver)  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [System 1 (pong)](#system-1-pong)  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [System 2 (ping)](#system-2-ping)  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Histogram](#histogram)  
-&nbsp;&nbsp;&nbsp;&nbsp;&bull; [TEST PERSISTENCE](#test-persistence)  
-&nbsp;&nbsp;&nbsp;&nbsp;&bull; [JAVA](#java)  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [System 1 (pong)](#system-1-pong)  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [System 2 (ping)](#system-2-ping)  
-&nbsp;&nbsp;&nbsp;&nbsp;&bull; [MEASUREMENT OUTLIERS](#measurement-outliers)  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [INTERRUPTIONS](#interruptions)  
-&nbsp;&nbsp;&nbsp;&nbsp;&bull; [TOOL NOTES](#tool-notes)  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [UM_LAT_PING.C](#um_lat_pingc)  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [UM_LAT_PONG.C](#um_lat_pongc)  
-<!-- TOC created by '../mdtoc/mdtoc.pl README.md' (see https://github.com/fordsfords/mdtoc) -->
+&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Copyright and License](#copyright-and-license)  
+&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Repository](#repository)  
+&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Introduction](#introduction)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Environment](#environment)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Requirements](#requirements)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Build Test Tools](#build-test-tools)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [CPU Affinities](#cpu-affinities)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Update Configuration File](#update-configuration-file)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [UM Configuration File](#um-configuration-file)  
+&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Test Streaming](#test-streaming)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Kernel Driver](#kernel-driver)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Onload Driver](#onload-driver)  
+&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Java](#java)  
+&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Measurement Outliers](#measurement-outliers)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Interruptions](#interruptions)  
+&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Tool Notes](#tool-notes)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [um_lat_ping.c](#um_lat_pingc)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [um_lat_pong.c](#um_lat_pongc)  
+<!-- TOC created by '/home/sford/bin/mdtoc.pl README.md' (see https://github.com/fordsfords/mdtoc) -->
 <!-- mdtoc-end -->
 
-## COPYRIGHT AND LICENSE
+## Copyright and License
 
 All of the documentation and software included in this and any
 other Informatica Ultra Messaging GitHub repository
@@ -62,11 +53,11 @@ INDIRECT DAMAGES ARISING OUT OF OR RELATED TO THIS AGREEMENT OR THE
 TRANSACTIONS CONTEMPLATED HEREUNDER, EVEN IF INFORMATICA HAS BEEN APPRISED OF
 THE LIKELIHOOD OF SUCH DAMAGES.
 
-## REPOSITORY
+## Repository
 
 See https://github.com/UltraMessaging/um_lat for code and documentation.
 
-## INTRODUCTION
+## Introduction
 
 Informatica used the tools in this repository to measure the
 latency for streaming and persistent sources,
@@ -90,7 +81,7 @@ following results:
 * 5.1 microseconds one-way latency (with Onload network driver)
 
 
-### ENVIRONMENT
+### Environment
 
 The commands and scripts in this repository assume four environment
 variables are set up: LBM_LICENSE_INFO, LBM, LD_LIBRARY_PATH, and CP.
@@ -105,7 +96,7 @@ LD_LIBRARY_PATH="$LBM/lib"
 CP="-classpath .:/home/sford/UMP_6.14/java/UMS_6.14.jar"
 ````
 
-### REQUIREMENTS
+### Requirements
 
 1. 2 Linux-based hosts (X86, 64-bit).
 8 gigabytes or more memory.
@@ -124,7 +115,7 @@ Contact UM Support.
 See [Test Hardware](#informatica-test-hardware) for details of Informatica's
 test hosts.
 
-### BUILD TEST TOOLS
+### Build Test Tools
 
 Copy the "lbm.sh.example" to "lbm.sh" and modify per your environment.
 
@@ -138,7 +129,7 @@ For Java programmers, we recommend also building and testing with our C
 application for comparison purposes.
 
 
-### CPU AFFINITIES
+### CPU Affinities
 
 To get the lowest latency, you should set your thread affinities to
 CPUs that are "close" to the NIC.
@@ -150,7 +141,7 @@ so you will see those CPU numbers referenced in the example commands
 ("-A" and "-a" options for um_lat_ping, "-a" for um_lat_pong).
 You should substitute your optimal CPUs.
 
-### UPDATE CONFIGURATION FILE
+### Update Configuration File
 
 Contact your network administration group and request three multicast groups
 that you can use exclusively.
@@ -164,7 +155,7 @@ of the network address.
 For example: "10.29.4.0/24".
 All hosts can typically use this on the same LAN.
 
-#### UM CONFIGURATION FILE
+#### UM Configuration File
 
 The file "um.xml" should be modified.
 Here is an excerpt:
@@ -206,7 +197,7 @@ even though we typically recommend the use of
 We recommend conducting a configuration workshop with Informatica.
 
 
-## TEST STREAMING
+## Test Streaming
 
 These tests are conducted with the following parameters:
 * Publish rate: 50,000 msgs/sec.
@@ -214,19 +205,19 @@ These tests are conducted with the following parameters:
 * Number of messages: 500,000 (preceded by 5 "warmup" messages).
 
 
-### KERNEL DRIVER
+### Kernel Driver
 
 This test uses Solarflare NIC but not Onload.
 Just the regular kernel network driver is used.
 
-#### System 1 (pong)
+**System 1 (pong)**
 
 Enter:
 ````
 ./um_lat_pong -s f -x um.xml -a 12 -E
 ````
 
-#### System 2 (ping)
+** System 2 (ping)**
 
 ````
 ./um_lat_ping -s f -A 4 -a 12 -x um.xml -m 24 -n 500000 -r 50000 -w 5,5 -H 300,1000 >ping.log; tail ping.log
@@ -249,7 +240,7 @@ microseconds.
 Note the percentiles, with 99.999% of samples being below 113,000 nanoseconds.
 We will see less jitter using Onload.
 
-#### Histogram
+**Histogram**
 
 The "-H 300,1000" command-line option tells the tool to use 300 buckets with
 1000 nanoseconds for each bucket.
@@ -275,20 +266,20 @@ meaning that only 6 of the 500,000 round trips had
 latency between 112,000 and 112,999 nanoseconds.
 
 
-### ONLOAD DRIVER
+### Onload Driver
 
 This test uses Solarflare NIC and Onload.
 The latencies are significantly lower because the NIC is accessed in user mode,
 bypassing the kernel.
 
-#### System 1 (pong)
+**System 1 (pong)**
 
 Enter:
 ````
 EF_POLL_USEC=-1 onload ./um_lat_pong -x um.xml -a 12 -E
 ````
 
-#### System 2 (ping)
+**System 2 (ping)**
 
 ````
 EF_POLL_USEC=-1 onload ./um_lat_ping -A 4 -a 12 -x um.xml -m 24 -n 500000 -r 50000 -w 5,5 -H 300,1000 >ping.log; tail ping.log
@@ -311,7 +302,7 @@ This is a significant improvement over the kernel driver.
 But also look at the percentiles.
 Onload greatly reduces the latency outliers.
 
-#### Histogram
+**Histogram**
 
 Here's the Excel chart:
 ![latency chart 2](lat_test2.png)
@@ -326,12 +317,7 @@ The greater latency jitter produced by the kernel driver is purely
 the result of calling into the kernel.
 
 
-## TEST PERSISTENCE
-
-TBD.
-
-
-## JAVA
+## Java
 
 The Java programs are mostly straightforward translations of the
 C code and style to Java code and style.
@@ -349,14 +335,14 @@ So we remove the "-A" and "-a" options and use the "taskset" command to limit
 the program to a set of CPUs that are "close" to the NIC.
 
 
-### System 1 (pong)
+**System 1 (pong)**
 
 Enter:
 ````
 java $CP UmLatPong -s f -x um.xml -E -S
 ````
 
-### System 2 (ping)
+**System 2 (ping)**
 
 ````
 taskset 7,8,9,10,11,12,14 java $CP UmLatPing -s f -x um.xml -m 24 -n 500000 -r 50000 -w 5,5 -H 300,1000 -S >ping.log; tail ping.log
@@ -383,7 +369,7 @@ the same up to the 99th percentile.
 After that, Java shows greater outliers.
 
 
-## MEASUREMENT OUTLIERS
+## Measurement Outliers
 
 The UM transport code used with these tests provide a very constant
 execution time per message.
@@ -396,7 +382,7 @@ Two environmental factors cause these outliers:
 * Interruptions.
 * Memory contention and cache invalidation.
 
-### INTERRUPTIONS
+### Interruptions
 
 There are many sources of execution interruptions on a CPU core running
 a typical OS (Linux or Windows).
@@ -428,14 +414,14 @@ See [Measure System Interruptions](https://github.com/UltraMessaging/um_perf#mea
 for a method to measure these interruptions.
 
 
-## TOOL NOTES
+## Tool Notes
 
 There are two tools: "um_lat_ping" and "um_lat_pong".
 The "ping" tool sends messages at a fixed rate,
 and the "pong" tool reflects them back.
 All the latency calculations are done in the "ping" tool.
 
-### UM_LAT_PING.C
+### um_lat_ping.c
 
 The um_lat_ping tool prints a brief help when the "-h" flag is supplied:
 ````
@@ -497,7 +483,7 @@ OS and CPU startup issues, like demand paging and cache misses.
 We have found that a small number like 5 is usually enough.
 
 
-### UM_LAT_PONG.C
+### um_lat_pong.c
 
 The um_lat_pong tool prints a brief help when the "-h" flag is supplied:
 ````
