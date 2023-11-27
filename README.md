@@ -112,9 +112,6 @@ It is possible to use pre-6.14, but some work will need to
 be done to the configuration and possibly the code.
 Contact UM Support.
 
-See [Test Hardware](#informatica-test-hardware) for details of Informatica's
-test hosts.
-
 ### Build Test Tools
 
 Copy the "lbm.sh.example" to "lbm.sh" and modify per your environment.
