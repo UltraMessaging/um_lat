@@ -76,15 +76,6 @@ int cur_flight_size = 0;
 int max_flight_size = 0;
 
 
-void assrt(int assertion, char *err_message)
-{
-  if (! assertion) {
-    fprintf(stderr, "um_lat_ping: Error, %s\nUse '-h' for help\n", err_message);
-    exit(1);
-  }
-}  /* assrt */
-
-
 void help() {
   fprintf(stderr, "Usage: um_lat_ping [-h] [-A affinity_src] [-a affinity_rcv] [-c config]\n  [-g] -H hist_num_buckets,hist_ns_per_bucket [-l linger_ms] -m msg_len\n  -n num_msgs [-p persist_mode] [-R rcv_thread] -r rate [-s spin_method]\n  [-w warmup_loops,warmup_rate] [-x xml_config]\n");
   fprintf(stderr, "Where (those marked with 'R' are required):\n"
@@ -140,14 +131,14 @@ void get_my_opts(int argc, char **argv)
         char *work_str = CPRT_STRDUP(o_histogram);
         char *strtok_context;
         char *hist_num_buckets_str = CPRT_STRTOK(work_str, ",", &strtok_context);
-        assrt(hist_num_buckets_str != NULL, "-H value must be 'hist_num_buckets,hist_ns_per_bucket'");
+        ASSRT(hist_num_buckets_str != NULL);
         CPRT_ATOI(hist_num_buckets_str, hist_num_buckets);
 
         char *hist_ns_per_bucket_str = CPRT_STRTOK(NULL, ",", &strtok_context);
-        assrt(hist_num_buckets_str != NULL, "-H value must be 'hist_num_buckets,hist_ns_per_bucket'");
+        ASSRT(hist_num_buckets_str != NULL);
         CPRT_ATOI(hist_ns_per_bucket_str, hist_ns_per_bucket);
 
-        assrt((CPRT_STRTOK(NULL, ",", &strtok_context)) == NULL, "-H value must be 'hist_num_buckets,hist_ns_per_bucket'");
+        ASSRT((CPRT_STRTOK(NULL, ",", &strtok_context)) == NULL);
         free(work_str);
         break;
       }
@@ -167,7 +158,7 @@ void get_my_opts(int argc, char **argv)
           app_name = "um_perf_spp";
           persist_mode = SPP;
         } else {
-          assrt(0, "-p value must be '', 'r', or 's'");
+          FATAL_ERROR("-p value must be '', 'r', or 's'");
         }
         break;
       case 'R':
@@ -178,7 +169,7 @@ void get_my_opts(int argc, char **argv)
         } else if (strcasecmp(o_rcv_thread, "x") == 0) {
           rcv_thread = XSP;
         } else {
-          assrt(0, "Error, -R value must be '' or 'x'\n");
+          FATAL_ERROR("-R value must be '' or 'x'\n");
         }
         break;
       case 'r': CPRT_ATOI(cprt_optarg, o_rate); break;
@@ -190,7 +181,7 @@ void get_my_opts(int argc, char **argv)
         } else if (strcasecmp(o_spin_method, "f") == 0) {
           spin_method = FD_MGT_BUSY;
         } else {
-          assrt(0, "Error, -s value must be '' or 'f'\n");
+          FATAL_ERROR("-s value must be '' or 'f'\n");
         }
         break;
       case 'w': {
@@ -199,16 +190,16 @@ void get_my_opts(int argc, char **argv)
         char *work_str = CPRT_STRDUP(o_warmup);
         char *strtok_context;
         char *warmup_loops_str = CPRT_STRTOK(work_str, ",", &strtok_context);
-        assrt(warmup_loops_str != NULL, "-w value must be 'warmup_loops,warmup_rate'");
+        ASSRT(warmup_loops_str != NULL);
         CPRT_ATOI(warmup_loops_str, warmup_loops);
 
         char *warmup_rate_str = CPRT_STRTOK(NULL, ",", &strtok_context);
-        assrt(warmup_rate_str != NULL, "-w value must be 'warmup_loops,warmup_rate'");
+        ASSRT(warmup_rate_str != NULL);
         CPRT_ATOI(warmup_rate_str, warmup_rate);
 
-        assrt((CPRT_STRTOK(NULL, ",", &strtok_context)) == NULL, "-w value must be 'warmup_loops,warmup_rate' (3)");
+        ASSRT((CPRT_STRTOK(NULL, ",", &strtok_context)) == NULL);
         if (warmup_loops > 0) {
-          assrt(warmup_rate > 0, "warmup_rate must be > 0");
+          ASSRT(warmup_rate > 0);
         }
         free(work_str);
         break;
@@ -219,19 +210,19 @@ void get_my_opts(int argc, char **argv)
         /* Don't read it now since app_name might not be set yet. */
         break;
       default:
-        fprintf(stderr, "um_lat_ping: error: unrecognized option '%c'\nUse '-h' for help\n", opt);
+        fprintf(stderr, "um_lat_ping: ERROR: unrecognized option '%c'\nUse '-h' for help\n", opt);
         exit(1);
     }  /* switch opt */
   }  /* while getopt */
 
-  if (cprt_optind != argc) { assrt(0, "Unexpected positional parameter(s)"); }
+  ASSRT(cprt_optind == argc);  /* No further command-line parameters allowed. */
 
   /* Must supply certain required "options". */
-  assrt(o_rate > 0, "Must supply '-r rate'");
-  assrt(o_num_msgs > 0, "Must supply '-n num_msgs'");
-  assrt(o_msg_len >= sizeof(perf_msg_t), "Must supply '-m msg_len'");
-  assrt(hist_num_buckets > 0, "-H value hist_num_buckets must be > 0");
-  assrt(hist_ns_per_bucket > 0, "-H value hist_ns_per_bucket must be > 0");
+  ASSRT(o_rate > 0);
+  ASSRT(o_num_msgs > 0);
+  ASSRT(o_msg_len >= sizeof(perf_msg_t));
+  ASSRT(hist_num_buckets > 0);
+  ASSRT(hist_ns_per_bucket > 0);
 
   /* Waited to read xml config (if any) so that app_name is set up right. */
   if (strlen(o_xml_config) > 0) {
@@ -372,7 +363,7 @@ int handle_src_event(int event, void *extra_data, void *client_data)
     case LBM_SRC_EVENT_UME_MESSAGE_NOT_STABLE:
       break;
     default:
-      fprintf(stderr, "handle_src_event: unexpected event %d\n", event);
+      fprintf(stderr, "handle_src_event: ERROR, unexpected event %d\n", event);
   }
 
   return 0;
@@ -753,19 +744,21 @@ int main(int argc, char **argv)
   if (warmup_loops > 0) {
     /* Warmup loops to get CPU caches loaded. */
     send_loop(warmup_loops, warmup_rate, 0);
+    CPRT_SLEEP_MS(o_linger_ms);
   }
 
   /* Measure overall send rate by timing the main send loop. */
   hist_init();  /* Zero out data from warmup period. */
+  num_rcv_msgs = 0;  /* Starting over. */
+  num_rx_msgs = 0;
+  num_unrec_loss = 0;
 
   CPRT_GETTIME(&start_ts);
   actual_sends = send_loop(o_num_msgs, o_rate, 1);
   CPRT_GETTIME(&end_ts);
   CPRT_DIFF_TS(duration_ns, end_ts, start_ts);
 
-  if (o_linger_ms > 0) {
-    CPRT_SLEEP_MS(o_linger_ms);
-  }
+  CPRT_SLEEP_MS(o_linger_ms);
 
   ASSRT(num_rcv_msgs > 0);
 
@@ -777,7 +770,7 @@ int main(int argc, char **argv)
   hist_print();
 
   /* Leave "comma space" at end of line to make parsing output easier. */
-  printf("actual_sends=%d, duration_ns=%"PRIu64", result_rate=%f, global_max_tight_sends=%d, max_flight_size=%d\n",
+  printf("actual_sends=%d, duration_ns=%"PRIu64", result_rate=%f, global_max_tight_sends=%d, max_flight_size=%d, \n",
       actual_sends, duration_ns, result_rate, global_max_tight_sends,
       max_flight_size);
 
@@ -797,6 +790,8 @@ int main(int argc, char **argv)
       CPRT_SLEEP_SEC(num_checks);  /* Sleep longer each check. */
     }
   }
+  ASSRT(num_unrec_loss == 0);
+  ASSRT(num_rcv_msgs == actual_sends);
 
   delete_source();
 

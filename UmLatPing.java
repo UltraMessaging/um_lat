@@ -81,10 +81,17 @@ class UmLatPing implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
 
   private void assrt(boolean assertion, String errMessage) {
     if (! assertion) {
-      System.err.println("UmLatPing: Error, " + errMessage + "\nUse '-h' for help");
+      System.err.println("UmLatPing: ERROR: '" + errMessage + "' not true");
+      new Exception().printStackTrace();
       System.exit(1);
     }
   }  // assrt
+
+  private void fatalError(String errMessage) {
+    System.err.println("UmLatPing: ERROR: '" + errMessage + "' not true");
+    new Exception().printStackTrace();
+    System.exit(1);
+  }  // fatalError
 
 
   // Used when parsing options that have arguments.
@@ -138,7 +145,7 @@ class UmLatPing implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
           case "-H":
             optHistogram = optArg(args, argNum ++);
             String[] values = optHistogram.split(",");
-            assrt(values.length == 2, "-H value '" + optHistogram + "' must be 'hist_num_buckets,hist_ns_per_bucket'");
+            assrt(values.length == 2, "values.length == 2");
             histNumBuckets = Integer.parseInt(values[0]);
             histNsPerBucket = Integer.parseInt(values[1]);
             break;
@@ -157,7 +164,7 @@ class UmLatPing implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
               appName = "um_perf_spp";
               persistMode = PersistMode.SPP;
             } else {
-              assrt(false, "-p value must be '', 'r', or 's'");
+              fatalError("-p value must be '', 'r', or 's'");
             }
             break;
           case "-R":
@@ -167,7 +174,7 @@ class UmLatPing implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
             } else if (optRcvThread.equalsIgnoreCase("x")) {
               rcvThread = RcvThread.XSP;
             } else {
-              assrt(false, "-R value must be '' or 'x'");
+              fatalError("-R value must be '' or 'x'");
             }
             break;
           case "-r": optRate = Integer.parseInt(optArg(args, argNum ++)); break;
@@ -179,17 +186,17 @@ class UmLatPing implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
             } else if (optSpinMethod.equalsIgnoreCase("f")) {
               spinMethod = SpinMethod.FD_MGT_BUSY;
             } else {
-              assrt(false, "-s value must be '' or 'f'");
+              fatalError("-s value must be '' or 'f'");
             }
             break;
           case "-w":
             optWarmup = optArg(args, argNum ++);
             values = optWarmup.split(",");
-            assrt(values.length == 2, "-w value '" + optWarmup + "' must be 'warmup_loops,warmup_rate'");
+            assrt(values.length == 2, "values.length == 2");
             warmupLoops = Integer.parseInt(values[0]);
             warmupRate = Integer.parseInt(values[1]);
             if (warmupLoops > 0) {
-              assrt(warmupRate > 0, "warmup_rate must be > 0");
+              assrt(warmupRate > 0, "warmupRate > 0");
             }
             break;
           case "-x":
@@ -197,23 +204,23 @@ class UmLatPing implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
             // Don't read it now since app_name might not be set yet.
             break;
           default:
-            assrt(false, "unrecognized option '" + opt + "'");
+            System.err.println("unrecognized option '" + opt + "'");
+            System.exit(1);
         }  // switch
       } catch (Exception e) {
-        assrt(false, "Exception processing option '" + opt + "':\n" + e);
+        fatalError("Exception processing option '" + opt + "':\n" + e);
       }  // try
     }  // while argNum
 
-    // This program doesn't have positional parameters.
-    assrt(argNum == args.length, "Unexpected parameter");
+    assrt(argNum == args.length, "argNum == args.length");  // No further command-line parameters allowed.
 
     // Make sure required options are supplied.
-    assrt(optRate > 0, "Must supply '-r rate'");
-    assrt(optNumMsgs > 0, "Must supply '-n num_msgs'");
-    assrt(optMsgLen > 0, "Must supply '-m msg_len'");
-    assrt(optHistogram.length() > 0, "Must supply '-H hist_num_buckets,hist_ns_per_bucket'");
-    assrt(histNumBuckets > 0, "-H value hist_num_buckets must be > 0");
-    assrt(histNsPerBucket > 0, "-H value hist_ns_per_bucket must be > 0");
+    assrt(optRate > 0, "optRate > 0");
+    assrt(optNumMsgs > 0, "optNumMsgs > 0");
+    assrt(optMsgLen > 0, "optMsgLen > 0");
+    assrt(optHistogram.length() > 0, "optHistogram.length() > 0");
+    assrt(histNumBuckets > 0, "histNumBuckets > 0");
+    assrt(histNsPerBucket > 0, "histNsPerBucket > 0");
 
     // Waited to read xml config (if any) so that app_name is set up right.
     if (optXmlConfig.length() > 0) {
@@ -290,10 +297,10 @@ class UmLatPing implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
     for (i = 0; i < histNumBuckets; i++) {
       System.out.println(histBuckets[i]);
     }
-    System.out.println("optHistogram=" + optHistogram + ", histOverflows=" + histOverflows +
-        ", histMinSample=" + histMinSample + ", histMaxSample=" + histMaxSample + ",");
+    System.out.println("opt_histogram=" + optHistogram + ", hist_overflows=" + histOverflows +
+        ", hist_min_sample=" + histMinSample + ", hist_max_sample=" + histMaxSample + ",");
     long averageSample = histSampleSum / histNumSamples;
-    System.out.println("histNuMSamples=" + histNumSamples + ", averageSample=" + averageSample + ",");
+    System.out.println("hist_num_samples=" + histNumSamples + ", average_sample=" + averageSample + ",");
 
     System.out.println("Percentiles: 90=" + histPercentile(90.0) + ", 99=" + histPercentile(99.0) +
         ", 99.9=" + histPercentile(99.9) + ", 99.99=" + histPercentile(99.99) +
@@ -320,7 +327,7 @@ class UmLatPing implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
         registrationComplete++;
         break;
       case LBM.SRC_EVENT_UME_MESSAGE_STABLE_EX:  // Message stable, flight size shrinks.
-        assrt(curFlightSize.decrementAndGet() >= 0, "Negative flight size");
+        assrt(curFlightSize.decrementAndGet() >= 0, "curFlightSize.decrementAndGet() >= 0");
         break;
       case LBM.SRC_EVENT_SEQUENCE_NUMBER_INFO:
         break;
@@ -331,7 +338,7 @@ class UmLatPing implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
         if ((reclaiminfo.flags() & LBM.SRC_EVENT_UME_MESSAGE_RECLAIMED_EX_FLAG_FORCED) != 0) {
           System.err.println("Forced reclaim (should not happen): sqn=" + reclaiminfo.sequenceNumber());
           // Forced reclaim also shrinks flight size.
-          assrt(curFlightSize.decrementAndGet() >= 0, "Negative flight size");
+          assrt(curFlightSize.decrementAndGet() >= 0, "curFlightSize.decrementAndGet() >= 0");
         }
         break;
       case LBM.SRC_EVENT_UME_DEREGISTRATION_SUCCESS_EX:
@@ -341,7 +348,7 @@ class UmLatPing implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
       case LBM.SRC_EVENT_UME_MESSAGE_NOT_STABLE:
         break;
       default:
-        System.err.println("handleSrcEvent: unexpected event: " + sourceEvent.type());
+        System.err.println("handleSrcEvent: ERROR, unexpected event: " + sourceEvent.type());
     }  // switch
 
     sourceEvent.dispose();
@@ -452,15 +459,15 @@ class UmLatPing implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
         numRcvMsgs = 0;
         numRxMsgs = 0;
         numUnrecLoss = 0;
-        System.out.println("rcv event BOS, topicName='" + msg.topicName() +
+        System.out.println("rcv event BOS, topic_name='" + msg.topicName() +
             "', source=" + msg.source() + ",");
         System.out.flush();  // typically not needed, but not guaranteed.
         break;
 
       case LBM.MSG_EOS:
         System.out.println("rcv event EOS, '" + msg.topicName() +
-            "', " + msg.source() + ", numRcvMsgs=" + numRcvMsgs +
-            ", numRxMsgs=" + numRxMsgs + ", numUnrecLoss=" + numUnrecLoss + ",");
+            "', " + msg.source() + ", num_rcv_msgs=" + numRcvMsgs +
+            ", num_rx_msgs=" + numRxMsgs + ", num_unrec_loss=" + numUnrecLoss + ",");
         System.out.flush();  // typically not needed, but not guaranteed.
         break;
 
@@ -495,7 +502,7 @@ class UmLatPing implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
 
       default:
         System.out.println("rcv event " + msg.type() +
-            ", topicName='" + msg.topicName() +
+            ", topic_name='" + msg.topicName() +
             "', source=" + msg.source() + ",");
         System.out.flush();  // typically not needed, but not guaranteed.
     }  // switch
@@ -555,7 +562,7 @@ class UmLatPing implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
             mySSrc.send(mySSrcBuffer, 0, optMsgLen, msgSendFlags, null);
           }
         } catch (Exception e) {
-          System.err.println("Error sending: " + e.toString());
+          System.err.println("ERROR sending: " + e.toString());
           System.exit(1);
         }
 
@@ -583,18 +590,18 @@ class UmLatPing implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
     getMyOpts(args);
     histCreate();
 
-    System.out.println("optConfig=" + optConfig +
-        ", optGenericSrc=" + optGenericSrc + ", optHistogram=" + optHistogram +
-        ", optLingerMs=" + optLingerMs + ", optMsgLen=" + optMsgLen +
-        ", optNumMsgs=" + optNumMsgs + ", optPersistMode=" + optPersistMode +
-        ", optRcvThread=" + optRcvThread + ", optRate=" + optRate +
-        ", optSequential=" + optSequential +
-        ", optSpinMethod=" + optSpinMethod + ", optWarmup=" + optWarmup +
-        ", optXmlConfig=" + optXmlConfig + ",");
-    System.out.println("appName='" + appName +
-        "', histNumBuckets=" + histNumBuckets +
-        ", histNsPerBucket=" + histNsPerBucket +
-        ", persistMode=" + persistMode +
+    System.out.println("opt_config=" + optConfig +
+        ", opt_generic_src=" + optGenericSrc + ", opt_histogram=" + optHistogram +
+        ", opt_linger_ms=" + optLingerMs + ", opt_msg_len=" + optMsgLen +
+        ", opt_num_msgs=" + optNumMsgs + ", opt_persist_mode=" + optPersistMode +
+        ", opt_rcv_thread=" + optRcvThread + ", opt_rate=" + optRate +
+        ", opt_sequential=" + optSequential +
+        ", opt_spin_method=" + optSpinMethod + ", opt_warmup=" + optWarmup +
+        ", opt_xml_config=" + optXmlConfig + ",");
+    System.out.println("app_name='" + appName +
+        "', hist_num_buckets=" + histNumBuckets +
+        ", hist_ns_per_bucket=" + histNsPerBucket +
+        ", persist_mode=" + persistMode +
         ", spinMethod=" + spinMethod +
         ", warmupLoops=" + warmupLoops +
         ", warmupRate=" + warmupRate + ",");
@@ -637,21 +644,23 @@ class UmLatPing implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
 
     if (warmupLoops > 0) {
       sendLoop(warmupLoops, warmupRate, false);
+      Thread.sleep(optLingerMs);
     }
 
     // Measure overall send rate by timing the main send loop.
     histInit();  // Zero out data from warmup period.
+    numRcvMsgs = 0;  // Starting over.
+    numRxMsgs = 0;
+    numUnrecLoss = 0;
 
     long startNs = System.nanoTime();
     int actualSends = sendLoop(optNumMsgs, optRate, true);
     long endNs = System.nanoTime();
     long durationNs = endNs - startNs;
 
-    if (optLingerMs > 0) {
-      Thread.sleep(optLingerMs);
-    }
+    Thread.sleep(optLingerMs);
 
-    assrt(numRcvMsgs > 0, "numRcvMsgs is zero");
+    assrt(numRcvMsgs > 0, "numRcvMsgs > 0");
 
     double resultRate = durationNs;
     resultRate /= 1000000000;
@@ -661,12 +670,14 @@ class UmLatPing implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
     histPrint();
 
     // Leave "comma space" at end of line to make parsing output easier.
-    System.out.println("actualSends=" + actualSends +
-        ", durationNs=" + durationNs + ", resultRate=" + resultRate +
-        ", globalMaxTightSends=" + globalMaxTightSends +
-        ", maxFlightSize=" + maxFlightSize + ",");
-    System.out.println("Rcv: numRcvMsgs=" + numRcvMsgs +
-        ", numRxMsgs=" + numRxMsgs + ", numUnrecLoss=" + numUnrecLoss);
+    System.out.println("actual_sends=" + actualSends +
+        ", duration_ns=" + durationNs + ", result_rate=" + resultRate +
+        ", global_max_tight_sends=" + globalMaxTightSends +
+        ", max_flight_size=" + maxFlightSize +
+        ", ");
+    System.out.println("Rcv: num_rcv_msgs=" + numRcvMsgs +
+        ", num_rx_msgs=" + numRxMsgs + ", num_unrec_loss=" + numUnrecLoss +
+        ", ");
     System.out.flush();  // typically not needed, but not guaranteed.
 
     if (persistMode != PersistMode.STREAMING) {
@@ -683,6 +694,8 @@ class UmLatPing implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
         Thread.sleep(numChecks * 1000);
       }
     }
+    assrt(numUnrecLoss == 0, "numUnrecLoss == 0");
+    assrt(numRcvMsgs == actualSends, "numRcvMsgs == actualSends");
 
     deleteSource();
 
@@ -738,7 +751,7 @@ class LBMXspThread extends Thread {
       try {
         _xsp.processEvents(_msec);
       } catch (Exception e) {
-        System.err.println("Error processing events: " + e.toString());
+        System.err.println("ERROR processing events: " + e.toString());
         System.exit(1);
       }
     }

@@ -6,6 +6,7 @@ x.*
 xx.*
 xxx.*
 *.log
+*.bak
 um_lat_jitter
 um_lat_ping
 um_lat_pong

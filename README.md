@@ -27,6 +27,8 @@ and streaming.
 &nbsp;&nbsp;&nbsp;&nbsp;&bull; [Tool Notes](#tool-notes)  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [um_lat_ping.c](#um_lat_pingc)  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&bull; [um_lat_pong.c](#um_lat_pongc)  
+&bull; [Automation](#automation)  
+&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Summaries](#summaries)  
 <!-- TOC created by '/home/sford/bin/mdtoc.pl README.md' (see https://github.com/fordsfords/mdtoc) -->
 <!-- mdtoc-end -->
 
@@ -325,11 +327,16 @@ set previously, including the "CP" variable.
 Differences from C usage:
 * Our testing has suggested that using "sequential mode" provides a small
 latency benefit, so the Java program adds the "-S" option to use that mode.
+* Java requires significant "warmup" due to JIT compilation and other.
+In these tests, I use 5000 cycles (at 5000 msgs/sec).
+Higher numbers can further reduce outliers a little.
 * Java does not support setting thread affinity, and our experimentation
 has suggested that setting affinity externally to a single CPU is bad for
 latency.
-So we remove the "-A" and "-a" options and use the "taskset" command to limit
+So we remove the "-A" and "-a" options.
 the program to a set of CPUs that are "close" to the NIC.
+However, on a multi-NUMA machine, you should taskset the java process to
+the set of cores on the same NUMA zone as the NIC.
 
 
 **System 1 (pong)**
@@ -342,7 +349,7 @@ java $CP UmLatPong -s f -x um.xml -E -S
 **System 2 (ping)**
 
 ````
-taskset 7,8,9,10,11,12,14 java $CP UmLatPing -s f -x um.xml -m 24 -n 500000 -r 50000 -w 5,5 -H 300,1000 -S >ping.log; tail ping.log
+taskset 7,8,9,10,11,12,14 java $CP UmLatPing -s f -x um.xml -m 24 -n 500000 -r 50000 -w 5000,5000 -H 300,1000 -S >ping.log; tail ping.log
 ````
 
 Here's a sample of the output:
@@ -519,3 +526,82 @@ It also consumes 100% of the CPU that it is running on.
 configuring UM for "file_descriptor_management_behavior busy_wait".)
 
 Thus, the um_lat_pong tool consumes 100% of one CPU.
+
+# Automation
+
+The directory "automation" contains scripts to perform a variety of tests
+and summarize the results.
+These scripts makes a number of assumptions about the execution
+environment that would not be universally applicable,
+especially the "summaries.sh" script.
+Feel free to reverse-engineer the "tst.sh" and
+"summeries.sh",
+but is beyond the scope of this document to explain them
+in depth.
+[Contact UM Support](https://ultramessaging.github.io/UM_Support.html)
+for help.
+
+* automation/tst.sh - run a full suite of tests.
+* automation/summaries.sh - summarize each of "tst.sh" tests and insert
+the results into "README.md".
+
+See the file tst_logs.tar for a set of log files from our lab.
+
+## Summaries
+
+**C Latency**
+
+Log file | Rate | Avg Latency | Overflows | Percentiles
+-------- | ---- | ----------- | --------- | -----------
+testc1.pinger.log | 50000 | 27989 | 44 | 90=29000, 99=38000, 99.9=44000, 99.99=272000, 99.999=-1
+testc2.pinger.log | 50000 | 27795 | 0 | 90=29000, 99=39000, 99.9=60000, 99.99=93000, 99.999=131000
+testc3.pinger.log | 50000 | 28053 | 0 | 90=29000, 99=40000, 99.9=64000, 99.99=95000, 99.999=140000
+
+**C Onloaded Latency**
+
+Log file | Rate | Avg Latency | Overflows | Percentiles
+-------- | ---- | ----------- | --------- | -----------
+testco1.pinger.log | 50000 | 8509 | 0 | 90=9000, 99=10000, 99.9=20000, 99.99=25000, 99.999=26000
+testco2.pinger.log | 50000 | 8547 | 0 | 90=9000, 99=10000, 99.9=20000, 99.99=25000, 99.999=25000
+testco3.pinger.log | 50000 | 8545 | 0 | 90=9000, 99=10000, 99.9=22000, 99.99=25000, 99.999=25000
+
+**C Throuthput**
+
+Log file | Rate | Avg Latency | Overflows | Percentiles
+-------- | ---- | ----------- | --------- | -----------
+testcf1.pinger.log | 100000 | 8504 | 0 | 90=9000, 99=11000, 99.9=21000, 99.99=26000, 99.999=26000
+testcf11.pinger.log | 1100000 | 15011 | 680 | 90=18000, 99=27000, 99.9=36000, 99.99=256000, 99.999=-1
+testcf12.pinger.log | 1200000 | 28499 | 103487 | 90=28000, 99=61000, 99.9=-1, 99.99=-1, 99.999=-1
+testcf13.pinger.log | 1300000 | 37389191 | 6504351 | 90=-1, 99=-1, 99.9=-1, 99.99=-1, 99.999=-1 | um_lat_ping.c:794, ERROR: 'num_rcv_msgs == actual_sends' not true
+testcf3.pinger.log | 300000 | 8606 | 0 | 90=9000, 99=10000, 99.9=22000, 99.99=26000, 99.999=29000
+testcf5.pinger.log | 500000 | 8670 | 0 | 90=9000, 99=11000, 99.9=24000, 99.99=27000, 99.999=30000
+testcf7.pinger.log | 700000 | 8831 | 0 | 90=10000, 99=13000, 99.9=25000, 99.99=29000, 99.999=37000
+testcf9.pinger.log | 900000 | 10491 | 1348 | 90=12000, 99=18000, 99.9=29000, 99.99=-1, 99.999=-1
+
+**Java Latency**
+
+Log file | Rate | Avg Latency | Overflows | Percentiles
+-------- | ---- | ----------- | --------- | -----------
+testj1.pinger.log | 50000 | 26089 | 12 | 90=28000, 99=36000, 99.9=73000, 99.99=124000, 99.999=-1
+testj2.pinger.log | 50000 | 31518 | 2595 | 90=27000, 99=43000, 99.9=-1, 99.99=-1, 99.999=-1
+testj3.pinger.log | 50000 | 27161 | 142 | 90=28000, 99=34000, 99.9=86000, 99.99=-1, 99.999=-1
+
+**Java Onloaded Latency**
+
+Log file | Rate | Avg Latency | Overflows | Percentiles
+-------- | ---- | ----------- | --------- | -----------
+testjo1.pinger.log | 50000 | 9232 | 9 | 90=10000, 99=11000, 99.9=24000, 99.99=29000, 99.999=-1
+testjo2.pinger.log | 50000 | 9198 | 9 | 90=10000, 99=11000, 99.9=24000, 99.99=28000, 99.999=-1
+testjo3.pinger.log | 50000 | 9266 | 11 | 90=10000, 99=11000, 99.9=24000, 99.99=29000, 99.999=-1
+
+**Java Throuthput**
+
+Log file | Rate | Avg Latency | Overflows | Percentiles | Errors
+-------- | ---- | ----------- | --------- | ----------- | ------
+testjf1.pinger.log | 100000 | 9220 | 23 | 90=10000, 99=11000, 99.9=25000, 99.99=29000, 99.999=-1
+testjf3.pinger.log | 300000 | 9621 | 129 | 90=10000, 99=13000, 99.9=27000, 99.99=167000, 99.999=-1
+testjf5.pinger.log | 500000 | 10435 | 602 | 90=12000, 99=17000, 99.9=29000, 99.99=-1, 99.999=-1
+testjf7.pinger.log | 700000 | 14343 | 8743 | 90=16000, 99=26000, 99.9=-1, 99.99=-1, 99.999=-1
+testjf8.pinger.log | 799999 | 25594 | 30047 | 90=25000, 99=37000, 99.9=-1, 99.99=-1, 99.999=-1
+testjf9.pinger.log | 900000 | 43041041 | 5570384 | 90=-1, 99=-1, 99.9=-1, 99.99=-1, 99.999=-1 | UmLatPing: ERROR: 'numRcvMsgs == actualSends' not true
+

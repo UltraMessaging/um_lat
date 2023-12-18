@@ -61,15 +61,6 @@ int cur_flight_size = 0;
 int max_flight_size = 0;
 
 
-void assrt(int assertion, char *err_message)
-{
-  if (! assertion) {
-    fprintf(stderr, "um_lat_ping: Error, %s\nUse '-h' for help\n", err_message);
-    exit(1);
-  }
-}  /* assrt */
-
-
 void help() {
   fprintf(stderr, "Usage: um_lat_pong [-h] [-a affinity_rcv] [-c config] [-E] [-g]\n  [-p persist_mode] [-R rcv_thread] [-s spin_method] [-x xml_config]\n");
   fprintf(stderr, "Where:\n"
@@ -124,7 +115,7 @@ void get_my_opts(int argc, char **argv)
           app_name = "um_perf_spp";
           persist_mode = SPP;
         } else {
-          assrt(0, "-p value must be '', 'r', or 's'");
+          FATAL_ERROR("-p value must be '', 'r', or 's'");
         }
       case 'R':
         free(o_rcv_thread);
@@ -134,7 +125,7 @@ void get_my_opts(int argc, char **argv)
         } else if (strcasecmp(o_rcv_thread, "x") == 0) {
           rcv_thread = XSP;
         } else {
-          assrt(0, "Error, -R value must be '' or 'x'\n");
+          FATAL_ERROR("-R value must be '' or 'x'\n");
         }
         break;
       case 's':
@@ -145,7 +136,7 @@ void get_my_opts(int argc, char **argv)
         } else if (strcasecmp(o_spin_method, "f") == 0) {
           spin_method = FD_MGT_BUSY;
         } else {
-          assrt(0, "Error, -s value must be '' or 'f'\n");
+          FATAL_ERROR("-s value must be '' or 'f'\n");
         }
         break;
       case 'x':
@@ -154,11 +145,12 @@ void get_my_opts(int argc, char **argv)
         /* Don't read it now since app_name might not be set yet. */
         break;
       default:
-        fprintf(stderr, "um_lat_pong: error: unrecognized option '%c'\nUse '-h' for help\n", opt);
+        fprintf(stderr, "um_lat_pong: ERROR: unrecognized option '%c'\nUse '-h' for help\n", opt);
+        exit(1);
     }  /* switch opt */
   }  /* while getopt */
 
-  if (cprt_optind != argc) { assrt(0, "Unexpected positional parameter(s)"); }
+  ASSRT(cprt_optind == argc);  /* No further command-line parameters allowed. */
 
   /* Waited to read xml config (if any) so that app_name is set up right. */
   if (strlen(o_xml_config) > 0) {
@@ -212,7 +204,7 @@ int handle_src_event(int event, void *extra_data, void *client_data)
     case LBM_SRC_EVENT_UME_MESSAGE_NOT_STABLE:
       break;
     default:
-      fprintf(stderr, "handle_src_event: unexpected event %d\n", event);
+      fprintf(stderr, "handle_src_event: ERROR, unexpected event %d\n", event);
   }
 
   return 0;

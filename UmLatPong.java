@@ -74,10 +74,17 @@ class UmLatPong implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
 
   private void assrt(boolean assertion, String errMessage) {
     if (! assertion) {
-      System.err.println("UmLatPong: Error, " + errMessage + "\nUse '-h' for help");
+      System.err.println("UmLatPong: ERROR: '" + errMessage + "' not true");
+      new Exception().printStackTrace();
       System.exit(1);
     }
   }  // assrt
+
+  private void fatalError(String errMessage) {
+    System.err.println("UmLatPing: ERROR: '" + errMessage + "' not true");
+    new Exception().printStackTrace();
+    System.exit(1);
+  }  // fatalError
 
 
   // Used when parsing options that have arguments.
@@ -136,7 +143,7 @@ class UmLatPong implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
               appName = "um_perf_spp";
               persistMode = PersistMode.SPP;
             } else {
-              assrt(false, "-p value must be '', 'r', or 's'");
+              fatalError("-p value must be '', 'r', or 's'");
             }
             break;
           case "-R":
@@ -146,7 +153,7 @@ class UmLatPong implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
             } else if (optRcvThread.equalsIgnoreCase("x")) {
               rcvThread = RcvThread.XSP;
             } else {
-              assrt(false, "-R value must be '' or 'x'");
+              fatalError("-R value must be '' or 'x'");
             }
             break;
           case "-S": optSequential = true; break;
@@ -157,7 +164,7 @@ class UmLatPong implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
             } else if (optSpinMethod.equalsIgnoreCase("f")) {
               spinMethod = SpinMethod.FD_MGT_BUSY;
             } else {
-              assrt(false, "-s value must be '' or 'f'");
+              fatalError("-s value must be '' or 'f'");
             }
             break;
           case "-x":
@@ -165,15 +172,15 @@ class UmLatPong implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
             // Don't read it now since app_name might not be set yet.
             break;
           default:
-            assrt(false, "unrecognized option '" + opt + "'");
+            System.err.println("unrecognized option '" + opt + "'");
+            System.exit(1);
         }  // switch
       } catch (Exception e) {
-        assrt(false, "Exception processing option '" + opt + "':\n" + e);
+        fatalError("Exception processing option '" + opt + "':\n" + e);
       }  // try
     }  // while argNum
 
-    // This program doesn't have positional parameters.
-    assrt(argNum == args.length, "Unexpected parameter");
+    assrt(argNum == args.length, "argNum == args.length");  // No further command-line parameters allowed.
 
     // Waited to read xml config (if any) so that app_name is set up right.
     if (optXmlConfig.length() > 0) {
@@ -200,7 +207,7 @@ class UmLatPong implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
         registrationComplete++;
         break;
       case LBM.SRC_EVENT_UME_MESSAGE_STABLE_EX:  // Message stable, flight size shrinks.
-        assrt(curFlightSize.decrementAndGet() >= 0, "Negative flight size");
+        assrt(curFlightSize.decrementAndGet() >= 0, "curFlightSize.decrementAndGet() >= 0");
         break;
       case LBM.SRC_EVENT_SEQUENCE_NUMBER_INFO:
         break;
@@ -211,7 +218,7 @@ class UmLatPong implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
         if ((reclaiminfo.flags() & LBM.SRC_EVENT_UME_MESSAGE_RECLAIMED_EX_FLAG_FORCED) != 0) {
           System.err.println("Forced reclaim (should not happen): sqn=" + reclaiminfo.sequenceNumber());
           // Forced reclaim also shrinks flight size.
-          assrt(curFlightSize.decrementAndGet() >= 0, "Negative flight size");
+          assrt(curFlightSize.decrementAndGet() >= 0, "curFlightSize.decrementAndGet() >= 0");
         }
         break;
       case LBM.SRC_EVENT_UME_DEREGISTRATION_SUCCESS_EX:
@@ -221,7 +228,7 @@ class UmLatPong implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
       case LBM.SRC_EVENT_UME_MESSAGE_NOT_STABLE:
         break;
       default:
-        System.err.println("handleSrcEvent: unexpected event: " + sourceEvent.type());
+        System.err.println("handleSrcEvent: ERROR, unexpected event: " + sourceEvent.type());
     }  // switch
 
     sourceEvent.dispose();
@@ -334,15 +341,15 @@ class UmLatPong implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
         numRcvMsgs = 0;
         numRxMsgs = 0;
         numUnrecLoss = 0;
-        System.out.println("rcv event BOS, topicName='" + msg.topicName() +
+        System.out.println("rcv event BOS, topic_name='" + msg.topicName() +
             "', source=" + msg.source() + ",");
         System.out.flush();  // typically not needed, but not guaranteed.
         break;
 
       case LBM.MSG_EOS:
         System.out.println("rcv event EOS, '" + msg.topicName() +
-            "', source=" + msg.source() + ", numRcvMsgs=" + numRcvMsgs +
-            ", numRxMsgs=" + numRxMsgs + ", numUnrecLoss=" + numUnrecLoss + ",");
+            "', source=" + msg.source() + ", num_rcv_msgs=" + numRcvMsgs +
+            ", num_rx_msgs=" + numRxMsgs + ", num_unrec_loss=" + numUnrecLoss + ",");
         System.out.flush();  // typically not needed, but not guaranteed.
         if (optExitOnEos) {
           System.exit(0);
@@ -361,7 +368,7 @@ class UmLatPong implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
 
       case LBM.MSG_DATA:
         int msgLength = (int)msg.dataLength();
-        assrt(msgLength <= maxMsgLength, "Received message length > " + maxMsgLength);
+        assrt(msgLength <= maxMsgLength, "msgLength <= maxMsgLength");
 
         ByteBuffer message = msg.getMessagesBuffer();  // If SMX.
         if (message == null) {
@@ -381,7 +388,7 @@ class UmLatPong implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
           }
         }
         catch (Exception e) {
-          System.err.println("Error sending: " + e.toString());
+          System.err.println("ERROR sending: " + e.toString());
           System.exit(1);
         }
 
@@ -416,15 +423,15 @@ class UmLatPong implements LBMSourceEventCallback, LBMReceiverCallback, LBMTrans
 
     getMyOpts(args);
 
-    System.out.println("optConfig=" + optConfig +
-        ", optGenericSrc=" + optGenericSrc +
-        ", optPersistMode=" + optPersistMode +
-        ", optRcvThread=" + optRcvThread +
-        ", optSequential=" + optSequential + ", optSpinMethod=" + optSpinMethod +
-        ", optXmlConfig=" + optXmlConfig + ",");
-    System.out.println("appName='" + appName +
-        ", persistMode=" + persistMode +
-        ", spinMethod=" + spinMethod);
+    System.out.println("opt_config=" + optConfig +
+        ", opt_generic_src=" + optGenericSrc +
+        ", opt_persist_mode=" + optPersistMode +
+        ", opt_rcv_thread=" + optRcvThread +
+        ", opt_sequential=" + optSequential + ", optSpinMethod=" + optSpinMethod +
+        ", opt_xml_config=" + optXmlConfig + ",");
+    System.out.println("app_name='" + appName +
+        ", persist_mode=" + persistMode +
+        ", spin_method=" + spinMethod);
     System.out.flush();  // typically not needed, but not guaranteed.
 
     createContext();
@@ -474,7 +481,7 @@ class LBMXspThread extends Thread {
       try {
         _xsp.processEvents(_msec);
       } catch (Exception e) {
-        System.err.println("Error processing events: " + e.toString());
+        System.err.println("ERROR processing events: " + e.toString());
         System.exit(1);
       }
     }

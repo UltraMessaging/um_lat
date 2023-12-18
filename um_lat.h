@@ -48,6 +48,13 @@ extern "C" {
   } \
 } while (0)  /* ASSRT */
 
+#define FATAL_ERROR(msg_) do { \
+    fprintf(stderr, "%s:%d, ERROR: %s\n", \
+      __FILE__, __LINE__, msg_); \
+    fflush(stderr); \
+    exit(1); \
+} while (0)  /* FATAL_ERROR */
+
 #define E(lbm_funct_call_) do { \
   int e_ = (lbm_funct_call_); \
   if (e_ == LBM_FAILURE) { \

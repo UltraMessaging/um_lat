@@ -12,6 +12,10 @@ for F in *.md; do :
   fi
 done
 
+if [ ! -f lbm.sh ]; then :
+  echo "No 'lbm.sh', no tools built."
+  exit 1
+fi
 . ./lbm.sh
 
 # For Linux
@@ -28,6 +32,9 @@ if [ $? -ne 0 ]; then echo error in um_lat_ping.c; exit 1; fi
 gcc -Wall -g -I $LBM/include -I $LBM/include/lbm -L $LBM/lib -l lbm $LIBS \
     -o um_lat_pong cprt.c um_lat_pong.c
 if [ $? -ne 0 ]; then echo error in um_lat_pong.c; exit 1; fi
+
+gcc -Wall -g $LIBS \
+    -o sock_send cprt.c sock_send.c
 
 javac $CP lbmpong.java
 if [ $? -ne 0 ]; then echo error in lbmpong.java; exit 1; fi

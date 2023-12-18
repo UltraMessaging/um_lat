@@ -25,6 +25,7 @@
 #include <string.h>
 #include <time.h>
 #include <errno.h>
+#include <stdarg.h>
 
 #if defined(_WIN32)
 LARGE_INTEGER cprt_frequency;
@@ -43,7 +44,7 @@ int cprt_timeofday(struct cprt_timeval *tv, void *unused_tz)
    * in 100ns ticks.  */
   static const uint64_t EPOCH = ((uint64_t) 116444736000000000ULL);
 
-  GetSystemTimeAsFileTime (&tfile);
+  GetSystemTimeAsFileTime(&tfile);
   time = (uint64_t)tfile.dwLowDateTime;
   time += ((uint64_t)tfile.dwHighDateTime) << 32;
 
@@ -90,6 +91,21 @@ void cprt_inittime()
 #endif
 
 
+void cprt_sleep_ns(uint64_t duration_ns)
+{
+  uint64_t ns_so_far;
+  struct cprt_timespec cur_ts;
+  struct cprt_timespec start_ts;
+
+  CPRT_GETTIME(&start_ts);
+  cur_ts = start_ts;
+  do {  /* while */
+    CPRT_DIFF_TS(ns_so_far, cur_ts, start_ts);
+    CPRT_GETTIME(&cur_ts);
+  } while (ns_so_far < duration_ns);
+}  /* cprt_sleep_ns */
+
+
 void cprt_localtime_r(time_t *timep, struct tm *result)
 {
 #if defined(_WIN32)
@@ -98,6 +114,7 @@ void cprt_localtime_r(time_t *timep, struct tm *result)
   localtime_r(timep, result);
 #endif
 }  /* cprt_localtime_r */
+
 
 char *cprt_strerror(int errnum, char *buffer, size_t buf_sz)
 {
@@ -122,6 +139,175 @@ char *cprt_strerror(int errnum, char *buffer, size_t buf_sz)
 
   return buffer;
 }  /* cprt_strerror */
+
+
+void cprt_perrno(char *in_str, char *file, int line)
+{
+#if defined(_WIN32)
+  DWORD my_errno = errno;
+  if (my_errno != 0) {
+    char my_errstr[1024];
+    cprt_strerror(my_errno, my_errstr, sizeof(my_errstr));
+    fprintf(stderr, "ERROR (%s:%d): %s: errno=%u: '%s'\n",
+        CPRT_BASENAME(file), line, in_str,
+        my_errno, my_errstr);
+  }
+  else {
+    char *rtn_msg;
+    DWORD err;
+    my_errno = WSAGetLastError();
+    err = FormatMessageA(
+        FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+        NULL, my_errno, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&rtn_msg, 0, NULL);
+    if (err > 0) { /* If format worked */
+      fprintf(stderr, "ERROR (%s:%d): %s: WSAGetLastError=%d: %s",
+          CPRT_BASENAME(file), line, in_str, my_errno, rtn_msg);
+      LocalFree(rtn_msg);
+    }
+    else {
+      fprintf(stderr, "ERROR (%s:%d): %s: WSAGetLastError=%d (no description)\n",
+          CPRT_BASENAME(file), line, in_str, my_errno);
+    }
+  }
+  fflush(stderr);
+
+#else  /* Unix. */
+  char my_errno = errno;
+  char my_errstr[1024];
+  cprt_strerror(my_errno, my_errstr, sizeof(my_errstr));
+  fprintf(stderr, "ERROR (%s:%d): %s: errno=%u: %s\n",
+      CPRT_BASENAME(file), line, in_str,
+      my_errno, my_errstr);
+  fflush(stderr);
+
+#endif
+}  /* cprt_perrno */
+
+
+/* Get date/time stamp (date optional) with up to microsecond precision.
+ * Returns passed-in string pointer for convenience. */
+char *cprt_timestamp(char *str, int bufsz, int do_date, int precision)
+{
+  static unsigned long long pow_10[7] = { 1, 10, 100, 1000, 10000, 100000, 1000000 };
+  struct cprt_timeval cur_time_tv;
+  struct tm tm_buf;
+  char *rtn_str = str;
+
+  CPRT_TIMEOFDAY(&cur_time_tv, NULL);
+  CPRT_LOCALTIME_R(&cur_time_tv.tv_sec, &tm_buf);  /* Break down current time. */
+
+  if (do_date && precision > 0) {
+    CPRT_SNPRINTF(str, bufsz, "%04d-%02d-%02d %02d:%02d:%02d.%0*d",
+        (int)tm_buf.tm_year + 1900, (int)tm_buf.tm_mon + 1, (int)tm_buf.tm_mday,
+        (int)tm_buf.tm_hour, (int)tm_buf.tm_min, (int)tm_buf.tm_sec,
+        precision, (int)(cur_time_tv.tv_usec / pow_10[6 - precision]));
+  }
+  else if (do_date && precision == 0) {
+    CPRT_SNPRINTF(str, bufsz, "%04d-%02d-%02d %02d:%02d:%02d",
+        (int)tm_buf.tm_year + 1900, (int)tm_buf.tm_mon + 1, (int)tm_buf.tm_mday,
+        (int)tm_buf.tm_hour, (int)tm_buf.tm_min, (int)tm_buf.tm_sec);
+  }
+  else if (!do_date && precision > 0) {
+    CPRT_SNPRINTF(str, bufsz, "%02d:%02d:%02d.%0*d",
+        (int)tm_buf.tm_hour, (int)tm_buf.tm_min, (int)tm_buf.tm_sec,
+        precision, (int)(cur_time_tv.tv_usec / pow_10[6 - precision]));
+  }
+  else {  /* !do_date && precision==0 */
+    CPRT_SNPRINTF(str, bufsz, "%02d:%02d:%02d",
+        (int)tm_buf.tm_hour, (int)tm_buf.tm_min, (int)tm_buf.tm_sec);
+  }
+
+  return rtn_str;
+}  /* cprt_timestamp */
+
+
+/* Called like printf but prints ms-resolution "delta" timestamp.
+ * Also flushes stdout. */
+void cprt_vts_fprintf(FILE *fp, const char *format, va_list argp)
+{
+  size_t fmt_len, ts_len;
+  char *fmt_buf;
+
+  /* Create new format string with timestamp prepended to it. */
+  fmt_len = strlen(format) + 32;  /* Allows yyyy-mmm-dd hh:mm:ss.uuuuuuuu: */
+  fmt_buf = malloc(fmt_len);
+  cprt_timestamp(fmt_buf, 32, 1, 3);  /* Include date and 3 decimals for seconds. */
+  ts_len = strlen(fmt_buf);
+  snprintf(&fmt_buf[ts_len], fmt_len - ts_len, ": %s", format);
+
+  vfprintf(fp, fmt_buf, argp);   /* Pass in new format string. */
+  fflush(fp);
+
+  free(fmt_buf);
+}  /* cprt_vts_fprintf */
+
+
+void cprt_ts_printf(const char *format, ...)
+{
+  va_list argp;
+  va_start(argp, format);  /* Tell va_* where the start of argp is. */
+  cprt_vts_fprintf(stdout, format, argp);   /* Pass in new format string. */
+  va_end(argp);
+}  /* cprt_ts_printf */
+
+
+void cprt_ts_eprintf(const char *format, ...)
+{
+  va_list argp;
+  va_start(argp, format);  /* Tell va_* where the start of argp is. */
+  cprt_vts_fprintf(stderr, format, argp);   /* Pass in new format string. */
+  va_end(argp);
+}  /* cprt_ts_eprintf */
+
+
+/* This produces wall clock seconds after Unix epoc to ms precision. */
+uint64_t cprt_get_ms_time()
+{
+    struct cprt_timeval tv;
+
+    CPRT_TIMEOFDAY(&tv, NULL);
+    return ((uint64_t)tv.tv_sec * 1000) + ((uint64_t)tv.tv_usec / 1000);
+}  /* cprt_get_ms_time */
+
+
+/* Called like printf but prints ms-resolution "delta" timestamp.
+ * Also flushes stdout. */
+void cprt_vms_fprintf(FILE *fp, uint64_t start_ms, const char *format, va_list argp)
+{
+  size_t fmt_len;
+  char *fmt_buf;
+  uint64_t cur_ms = cprt_get_ms_time();
+
+  /* Create new format string with timestamp prepended to it. */
+  fmt_len = strlen(format) + 30;  /* Allows up to 24 digits of seconds. */
+  fmt_buf = malloc(fmt_len);
+  snprintf(fmt_buf, fmt_len, "%"PRIu64".%03"PRIu64": %s",
+      (cur_ms - start_ms)/1000, (cur_ms - start_ms) % 1000, format);
+
+  /* Do the printf. */
+  vfprintf(fp, fmt_buf, argp);   /* Pass in new format string. */
+  fflush(fp);
+
+  free(fmt_buf);
+}  /* cprt_vms_fprintf */
+
+
+void cprt_ms_printf(uint64_t start_ms, const char *format, ...)
+{
+  va_list argp;
+  va_start(argp, format);  /* Tell va_* where the start of argp is. */
+  cprt_vms_fprintf(stdout, start_ms, format, argp);   /* Pass in new format string. */
+  va_end(argp);
+}  /* cprt_ms_printf */
+
+
+void cprt_ms_eprintf(uint64_t start_ms, const char *format, ...)
+{
+  va_list argp;
+  va_start(argp, format);  /* Tell va_* where the start of argp is. */
+  cprt_vms_fprintf(stderr, start_ms, format, argp);   /* Pass in new format string. */
+  va_end(argp);
+}  /* cprt_ms_eprintf */
 
 
 void cprt_set_affinity(uint64_t in_mask)
@@ -186,6 +372,30 @@ int cprt_try_affinity(uint64_t in_mask)
 }  /* cprt_try_affinity */
 
 
+#define CPRT_MAX_EVENTS 1024
+int cprt_num_events = 0;
+int cprt_events[CPRT_MAX_EVENTS];
+void cprt_event(int event)
+{
+  cprt_events[(CPRT_ATOMIC_INC_VAL(&cprt_num_events) - 1) % CPRT_MAX_EVENTS] =
+      event;
+}  /* cprt_event */
+
+void cprt_dump_events(FILE *fd)
+{
+  int i, n;
+  n = cprt_num_events;
+  printf("cprt_num_events=%d\n", n);
+  for (i = 1; i <= CPRT_MAX_EVENTS; i++) {
+    fprintf(fd, "  cprt_event[%d] = %09d\n",
+        (n - i), cprt_events[(n - i) % CPRT_MAX_EVENTS]);
+    if (n == i) {
+      break;  /* There were less than CPRT_MAX_EVENTS events. */
+    }
+  }
+}  /* cprt_dump_events */
+
+
 /* Portable getopt(). */
 char* cprt_optarg;
 int cprt_optopt;
@@ -208,7 +418,7 @@ int cprt_getopt(int argc, char *const argv[], const char *optstring)
 
   argv_str = argv[cprt_optind];
 
-  argv_len = strlen(argv_str);
+  argv_len = (int)strlen(argv_str);
   if (argv_len < 2) {
     /* A single character, even if a '-', is not an option. Its an arg. */
     return EOF;
