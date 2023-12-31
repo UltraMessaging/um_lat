@@ -1,4 +1,5 @@
-/* um_lat_pong.c - performance measurement tool. */
+/* um_lat_pong.c - performance measurement tool.
+ * See https://github.com/UltraMessaging/um_lat */
 /*
   Copyright (c) 2021-2022 Informatica Corporation
   Permission is granted to licensees to use or alter this software for any
