@@ -7,8 +7,7 @@ for F in *.md; do :
     # Update doc table of contents (see https://github.com/fordsfords/mdtoc).
     if which mdtoc.pl >/dev/null; then mdtoc.pl -b "" $F;
     elif [ -x ../mdtoc/mdtoc.pl ]; then ../mdtoc/mdtoc.pl -b "" $F;
-    else echo "FYI: mdtoc.pl not found; see https://github.com/fordsfords/mdtoc"; exit 1
-    fi
+    else echo "FYI: mdtoc.pl not found; see https://github.com/fordsfords/mdtoc"; fi
   fi
 done
 
@@ -20,6 +19,8 @@ fi
 
 # For Linux
 LIBS="-l pthread -l m -l rt"
+
+echo "Building code"
 
 gcc -Wall -g $LIBS \
     -o um_lat_jitter cprt.c um_lat_jitter.c
@@ -44,3 +45,5 @@ if [ $? -ne 0 ]; then echo error in UmLatPing.java; exit 1; fi
 
 javac $CP UmLatPong.java
 if [ $? -ne 0 ]; then echo error in UmLatPong.java; exit 1; fi
+
+echo "Success"
