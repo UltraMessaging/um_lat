@@ -2,9 +2,6 @@
 *.jar
 *.class
 *.o
-x.*
-xx.*
-xxx.*
 *.log
 *.bak
 um_lat_jitter
@@ -16,9 +13,6 @@ labbox.sh
 lbm.sh
 lbm.lic
 *.txt
-x
-x.*
-*.x
 ~*
 
 # Prerequisites
